@@ -9,9 +9,11 @@ It is a single, statically linked binary (Rust) with an SQLite database. It runs
 server, serves its web interface over HTTPS itself and is used in the browser. It is meant for a home or small office
 network with one or a few administrators.
 
-> **Status:** all planned features are implemented and the program has been running in daily use since November 2026,
-> but **no release has been published yet**. Until then, build the package yourself (see [Building](#building)).
-> The user interface is available in German and English.
+> **Status:** all planned features are implemented and the program is in daily use. The first release is
+> [v0.3.5](https://github.com/tomCSLK/opensecmon/releases/tag/v0.3.5). The agent
+> [opensecagent](https://github.com/tomCSLK/opensecagent) works on Debian and Ubuntu; its Windows version is in
+> progress (until then Windows computers report with a PowerShell script). The user interface is available in German
+> and English.
 
 ## Features
 
@@ -47,7 +49,11 @@ network with one or a few administrators.
 
 ## Installation
 
+Download `opensecmon_<version>-1_amd64.deb` and `SHA256SUMS` from the
+[releases](https://github.com/tomCSLK/opensecmon/releases), then:
+
 ```sh
+sha256sum -c SHA256SUMS
 sudo apt install ./opensecmon_<version>-1_amd64.deb
 sudo -u opensecmon opensecmon --config /etc/opensecmon/config.toml user add anna
 sudo systemctl start opensecmon

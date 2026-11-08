@@ -21,6 +21,9 @@ package, HTTPS and certificates, the configuration, users, backups, updates and 
 
 ## Installing the Debian package
 
+The package is attached to each [release](https://github.com/tomCSLK/opensecmon/releases) together with
+`SHA256SUMS`; check it with `sha256sum -c SHA256SUMS` before installing (or build it yourself, see the README).
+
 ```bash
 sudo apt install ./opensecmon_<version>-1_amd64.deb
 ```
