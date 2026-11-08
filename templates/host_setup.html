@@ -1,0 +1,76 @@
+{#- Steps 2 to 4 of the wizard. The key line and the script are generated here; the fingerprint, the system
+    name and error texts come from the host and are escaped. -#}
+{% extends "app.html" %}
+{% block title %}{{ host.name }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <a class="btn ghost sm" href="/assets/hosts"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("hosts-title") }}</a>
+    <h1>{{ host.name }}</h1>
+    <p class="mono small">{{ host.username }}@{{ host.address }}{% if host.port != 22 %}:{{ host.port }}{% endif %}</p>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+<section class="card wiz" aria-labelledby="wizTitle">
+  <header><h2 id="wizTitle">{{ t.get("hosts-setup-title") }}</h2></header>
+  <div class="cbody">
+    <ol class="steps">
+      {%- for s in steps %}
+      <li{% if s.done %} class="done"{% endif %}{% if s.current %} aria-current="step"{% endif %}>{{ s.label }}</li>
+      {%- endfor %}
+    </ol>
+    {% include "flash.html" %}
+    {%- if step == 2 %}
+    <p>{{ t.get("hosts-setup-user") }} <code>{{ host.username }}</code> ({{ t.get("hosts-setup-home") }} <code>{{ commands.home }}</code>)</p>
+    <div class="codebox" data-copy-box>{{ commands.user }}</div>
+    <p class="small muted">{{ t.get("hosts-setup-groups") }}</p>
+    <div class="codebox" data-copy-box>{{ commands.group }}</div>
+    <p>{{ t.get("hosts-setup-script") }} <code>{{ commands.script_path }}</code></p>
+    <div class="codebox" data-copy-box>{{ commands.script }}</div>
+    <p>{{ t.get("hosts-setup-key") }} <code>{{ commands.key_path }}</code></p>
+    <div class="codebox" data-copy-box>{{ commands.key }}</div>
+    <p class="small muted">{{ t.get("hosts-setup-key-help") }}</p>
+    <form method="post" action="/assets/hosts/{{ host.id }}/connect" class="wizfoot">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <a class="btn" href="/assets/hosts/{{ host.id }}/edit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("hosts-back") }}</a>
+      <button class="btn primary" type="submit" data-busy>{{ t.get("hosts-connect") }}<svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-right"/></svg></button>
+    </form>
+    {%- else if step == 3 %}
+    {%- if changed %}
+    <p class="notice bad" role="alert"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ t.get("hosts-key-changed") }} <span class="fp">{{ old_fingerprint }}</span></span></p>
+    {%- endif %}
+    <p>{{ t.get("hosts-key-shown") }}</p>
+    <p><span class="fp">{{ fingerprint }}</span></p>
+    <p class="small muted">{{ t.get("hosts-key-compare") }} <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code></p>
+    <form method="post" action="/assets/hosts/{{ host.id }}/confirm">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <input type="hidden" name="key" value="{{ host.seen_key }}">
+      <label class="check"><input type="checkbox" name="ok" value="1" required> {{ t.get("hosts-key-ok") }}</label>
+      <div class="wizfoot">
+        <a class="btn" href="/assets/hosts/{{ host.id }}/setup?step=2"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("hosts-back") }}</a>
+        <button class="btn primary" type="submit" data-busy>{{ t.get("hosts-confirm") }}<svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-right"/></svg></button>
+      </div>
+    </form>
+    {%- else %}
+    {%- if read_ok %}
+    <p class="notice good" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-check-circle"/></svg><span>{{ result }}{% if open > 0 %} {{ t.get1("hosts-result-open", "count", open) }}{% endif %}</span></p>
+    {%- else if error.is_none() %}
+    <p class="notice info"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ t.get("hosts-result-none") }}</span></p>
+    {%- endif %}
+    <form method="post" action="/assets/hosts/{{ host.id }}/connect" class="wizfoot">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn" type="submit" data-busy><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>{{ t.get("hosts-run") }}</button>
+      {%- if read_ok %}
+      <a class="btn primary" href="/assets?host={{ host.name|urlencode }}">{{ t.get("hosts-done") }}</a>
+      {%- else %}
+      <a class="btn" href="/assets/hosts">{{ t.get("hosts-title") }}</a>
+      {%- endif %}
+    </form>
+    {%- endif %}
+  </div>
+</section>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+# Page "Vendor CSAF": the CSAF providers of vendors.
+
+vendors-title = Vendor CSAF
+vendors-subtitle = CSAF providers of vendors whose advisories are loaded (TLP:WHITE/CLEAR only).
+vendors-back = Sources
+vendors-add = Add a provider
+vendors-add-help = Choose from the BSI's list of providers or enter the address of a vendor's provider-metadata.json. The file is read when the provider is added.
+vendors-listed = From the BSI's list
+vendors-listed-choose = – choose –
+vendors-listed-empty = The list has not been loaded yet.
+vendors-lister-load = Load the provider list from the BSI
+vendors-lister-loaded = List loaded on
+vendors-lister-failed = The provider list could not be loaded: { $error }
+vendors-own-url = Or your own address
+vendors-own-url-help = Usually https://<domain>/.well-known/csaf/provider-metadata.json
+vendors-since = Documents since
+vendors-since-help = Older documents are not loaded. Empty: all (tens of thousands for large providers).
+vendors-since-invalid = Please choose a date that is not in the future.
+vendors-heavy-note = VEX directories (one file per CVE, as with Red Hat) start switched off and can be switched on per provider below.
+vendors-add-submit = Add
+vendors-url-invalid = Please enter an HTTPS address or choose a provider from the list.
+vendors-exists = This provider has already been added.
+vendors-metadata-failed = The provider file could not be read: { $error }
+vendors-none = No provider yet. The advisories of BSI CERT-Bund already cover many vendors.
+vendors-documents = advisories
+vendors-checked = last fetched
+vendors-never = never
+vendors-enabled = Load
+vendors-dists = Distributions
+vendors-dists-help = Only ticked distributions are loaded.
+vendors-dist-directory = Directory (changes.csv)
+vendors-save = Save
+vendors-delete = Remove (with its advisories)

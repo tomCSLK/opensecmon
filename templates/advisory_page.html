@@ -1,0 +1,9 @@
+{#- One advisory as a page of its own: links from the search, the CVE detail and later from mails. -#}
+{% extends "app.html" %}
+{% block title %}{{ d.display_id }} – opensecmon{% endblock %}
+{% block main_class %}page{% endblock %}
+{% block content %}
+<article class="detailpage">
+{% include "advisory_detail.html" %}
+</article>
+{% endblock %}

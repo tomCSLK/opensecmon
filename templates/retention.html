@@ -1,0 +1,66 @@
+{% extends "app.html" %}
+{% block title %}{{ t.get("settings-retention") }} – opensecmon{% endblock %}
+{% block content %}
+{% let section = "retention" %}
+<div class="pagehead"><div><h1>{{ t.get("nav-settings") }}</h1></div></div>
+<div class="split settings">
+{% include "settings_nav.html" %}
+<div class="stack">
+  {% include "flash.html" %}
+
+  <section class="card">
+    <header><h2>{{ t.get("retention-title") }}</h2></header>
+    <form method="post" action="/settings/retention">
+      <div class="cbody">
+        <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+        <div class="field">
+          <label for="audit_days">{{ t.get("retention-audit") }}</label>
+          <select id="audit_days" name="audit_days">
+            {% for c in audit %}<option value="{{ c.value }}"{% if c.selected %} selected{% endif %}>{{ c.label }}</option>{% endfor %}
+          </select>
+          <span class="help">{{ t.get1("retention-audit-hint", "period", config_days.as_str()) }}</span>
+        </div>
+        <div class="field">
+          <label for="closed_days">{{ t.get("retention-closed") }}</label>
+          <select id="closed_days" name="closed_days">
+            {% for c in closed %}<option value="{{ c.value }}"{% if c.selected %} selected{% endif %}>{{ c.label }}</option>{% endfor %}
+          </select>
+          <span class="help">{{ t.get("retention-closed-hint") }}</span>
+        </div>
+        <p class="notice info"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ t.get("retention-cves-hint") }}</span></p>
+      </div>
+      <div class="cfoot"><button class="btn primary" type="submit">{{ t.get("save") }}</button></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <header><h2>{{ t.get("retention-db") }}</h2></header>
+    <div class="cbody">
+      <p>{{ t.get1("retention-db-total", "size", total.as_str()) }}{% if has_free %} {{ t.get1("retention-db-free", "size", free.as_str()) }}{% endif %}</p>
+      {% if let Some(at) = measured %}
+      {% for a in areas %}
+      <div class="hbar size"><span>{{ a.label }}</span><svg class="b" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect class="acc" x="0" y="0" width="{{ a.share }}" height="8"/></svg><span class="n">{{ a.size }}</span></div>
+      {% endfor %}
+      <p class="small muted">{{ t.get("retention-measured") }} {{ at|safe }}</p>
+      {% else %}
+      <p class="small muted">{{ t.get("retention-not-measured") }}</p>
+      {% endif %}
+      {% if let Some(since) = running %}
+      <p class="notice info" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg><span>{{ t.get("retention-vacuum-running") }} {{ since|safe }}</span></p>
+      {% else %}
+      {% if let Some(e) = last_error %}
+      <p class="notice warn" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ t.get("retention-vacuum-failed") }} {{ e }}</span></p>
+      {% else if let Some(done) = last_done %}
+      <p class="small muted">{{ t.get("retention-vacuum-last") }} {{ done|safe }} · {{ t.get1("retention-vacuum-freed", "size", last_freed.as_str()) }}</p>
+      {% endif %}
+      {% endif %}
+      <p class="small muted">{{ t.get("retention-vacuum-hint") }}</p>
+    </div>
+    <form method="post" action="/settings/retention/vacuum">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <div class="cfoot"><button class="btn" type="submit"{% if running.is_some() %} disabled{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>{{ t.get("retention-vacuum") }}</button></div>
+    </form>
+  </section>
+</div>
+</div>
+{% endblock %}

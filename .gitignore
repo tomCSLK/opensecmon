@@ -1,0 +1,13 @@
+/target/
+/dev/*.local.toml
+/dev/data/
+*.key
+*.db
+*.db-wal
+*.db-shm
+.claude/
+/CLAUDE.local.md
+/dev/cache/
+/dist/agent/*
+!/dist/agent/README.md
+/PLAN.local.md

@@ -1,0 +1,20 @@
+#!/bin/sh
+# postrm of the opensecmon .deb (dev/deb.sh). Purge removes the configuration, the encryption key and the generated
+# HTTPS certificate; the database, the backups and the service user stay.
+set -e
+
+#DEBHELPER#
+
+if [ "$1" = purge ]; then
+  rm -f /etc/opensecmon/secret.key /etc/opensecmon/tls-cert.pem /etc/opensecmon/tls-key.pem
+  for path in /etc/opensecmon/config.toml /etc/opensecmon; do
+    if dpkg-statoverride --list "$path" >/dev/null; then
+      dpkg-statoverride --remove "$path"
+    fi
+  done
+  rmdir /etc/opensecmon 2>/dev/null || true
+  echo "opensecmon: kept the database (/var/lib/opensecmon), the backups (/var/backups/opensecmon) and the user opensecmon."
+  echo "  The encryption key was removed: without your own copy of it the stored passwords (SMTP) are lost."
+fi
+
+exit 0

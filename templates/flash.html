@@ -1,0 +1,7 @@
+{#- Messages after an action: `flash` (done) and `error` (refused). -#}
+{% if let Some(message) = flash %}
+<p class="notice good" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-check-circle"/></svg><span>{{ message }}</span></p>
+{% endif %}
+{% if let Some(message) = error %}
+<p class="notice bad" role="alert"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ message }}</span></p>
+{% endif %}

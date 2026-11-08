@@ -1,0 +1,69 @@
+{#- Assign a reported program to a product: the fields and the preview of the asset form (`static/assets.js`
+    offers suggestions and refreshes the preview). Names come from the computers and are escaped. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("unassigned-assign-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <a class="btn ghost sm" href="/assets/unassigned"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("unassigned-back") }}</a>
+    <h1>{{ entry.name }}</h1>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+<section class="card">
+  <header><h2>{{ t.get("unassigned-entry") }}</h2></header>
+  <div class="cbody">
+    <dl class="kv">
+      <dt>{{ t.get("asset-kind") }}</dt><dd>{{ entry.type_label }}</dd>
+      <dt>{{ t.get("unassigned-publisher") }}</dt><dd>{% if entry.publisher.is_empty() %}<span class="muted">–</span>{% else %}{{ entry.publisher }}{% endif %}</dd>
+      <dt>{{ t.get("unassigned-col-versions") }}</dt><dd class="mono">{% if entry.versions.is_empty() %}<span class="muted">–</span>{% else %}{{ entry.versions }}{% endif %}</dd>
+      <dt>{{ t.get("unassigned-col-computers") }}</dt><dd>{{ entry.count }} <span class="muted">{{ entry.computers }}</span></dd>
+    </dl>
+  </div>
+</section>
+<section class="card">
+  <header><h2>{{ t.get("unassigned-assign-title") }}</h2></header>
+  <div class="cbody">
+    <p class="small muted">{{ t.get("unassigned-assign-text") }}</p>
+    <form method="post" action="/assets/unassigned/assign" id="assetForm" data-asset-form>
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <input type="hidden" name="type" value="{{ f.item_type }}">
+      <input type="hidden" name="key" value="{{ f.key }}">
+      <input type="hidden" name="kind" value="software">
+      <input type="hidden" name="cpe" value="">
+      <input type="hidden" name="version" value="{{ f.version }}">
+      <div class="field-row">
+        <div class="field combo">
+          <label for="aVendor">{{ t.get("asset-vendor") }}</label>
+          <input id="aVendor" name="vendor_name" type="text" value="{{ f.vendor_name }}" maxlength="200" autocomplete="off" spellcheck="false" data-suggest="vendor" aria-autocomplete="list" aria-controls="sugVendor" aria-expanded="false">
+          <ul class="suggest" id="sugVendor" role="listbox" hidden></ul>
+          <span class="help">{{ t.get("asset-vendor-help") }}</span>
+        </div>
+        <div class="field combo">
+          <label for="aProduct">{{ t.get("asset-product") }}</label>
+          <input id="aProduct" name="product_name" type="text" value="{{ f.product_name }}" maxlength="200" autocomplete="off" spellcheck="false" data-suggest="product" aria-autocomplete="list" aria-controls="sugProduct" aria-expanded="false">
+          <ul class="suggest" id="sugProduct" role="listbox" hidden></ul>
+        </div>
+      </div>
+      <section class="preview" id="aPrev" aria-live="polite" aria-labelledby="aPrevTitle">
+        <h2 id="aPrevTitle" class="small">{{ t.get("asset-preview-title") }}{% if !f.version.is_empty() %} <span class="muted mono">{{ f.version }}</span>{% endif %}</h2>
+        {%- if let Some(preview) = preview %}
+        {% include "asset_preview_body.html" %}
+        {%- else %}
+        <div class="notice info"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ t.get("asset-preview-hint") }}</span></div>
+        {%- endif %}
+      </section>
+      <div class="btngroup">
+        <button class="btn primary" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-check"/></svg>{{ t.get("unassigned-save") }}</button>
+        <button class="btn" type="submit" name="action" value="preview" data-preview-button><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-eye"/></svg>{{ t.get("asset-preview") }}</button>
+        <a class="btn ghost" href="/assets/unassigned">{{ t.get("asset-cancel") }}</a>
+      </div>
+    </form>
+  </div>
+</section>
+</div>
+</div>
+{% endblock %}

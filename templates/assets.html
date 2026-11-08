@@ -1,0 +1,80 @@
+{#- Assets: the own software and hardware, grouped by host. Names, versions and notes come from the user and are
+    escaped. The groups can be folded with `static/assets.js`; without JavaScript every row is shown. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("assets-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ t.get("assets-title") }}</h1>
+    <p>{{ t.get("assets-subtitle") }}</p>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+<div class="card">
+  <form class="toolbar" method="get" action="/assets" role="search">
+    <label class="sr-only" for="aSearch">{{ t.get("assets-search") }}</label>
+    <input id="aSearch" name="q" type="search" value="{{ q }}" maxlength="100" placeholder="{{ t.get("assets-search-placeholder") }}">
+    <label class="sr-only" for="aKind">{{ t.get("assets-col-kind") }}</label>
+    <select id="aKind" name="kind">
+      <option value="">{{ t.get("assets-kind-any") }}</option>
+      {%- for (value, label) in kinds %}
+      <option value="{{ value }}"{% if kind == *value %} selected{% endif %}>{{ label }}</option>
+      {%- endfor %}
+    </select>
+    <label class="check small"><input type="checkbox" name="open" value="1"{% if open_only %} checked{% endif %}> {{ t.get("assets-open-only") }}</label>
+    {%- if !host.is_empty() %}
+    <input type="hidden" name="host" value="{{ host }}">
+    <a class="chip small" href="/assets" title="{{ t.get("assets-all-hosts") }}">{{ t.get("asset-host") }}: {{ host }} <svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-x"/></svg><span class="sr-only">{{ t.get("assets-all-hosts") }}</span></a>
+    {%- endif %}
+    <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-filter"/></svg>{{ t.get("assets-filter") }}</button>
+    <span class="sp"></span>
+    <a class="btn primary" href="/assets/new"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>{{ t.get("assets-add") }}</a>
+  </form>
+  {%- if total == 0 %}
+  <div class="empty">
+    <div>
+      <svg class="ico xl neutral" aria-hidden="true" focusable="false"><use href="#i-server"/></svg>
+      <h2>{{ t.get("assets-none-title") }}</h2>
+      <p>{{ t.get("assets-none-text") }}</p>
+    </div>
+  </div>
+  {%- else if groups.is_empty() %}
+  <p class="cbody muted">{{ t.get("assets-none-filtered") }}</p>
+  {%- else %}
+  <div class="tblwrap">
+    <table class="tbl assets">
+      <thead><tr><th>{{ t.get("assets-col-asset") }}</th><th>{{ t.get("assets-col-version") }}</th><th>{{ t.get("assets-col-kind") }}</th><th class="hide-sm">{{ t.get("assets-col-detail") }}</th><th>{{ t.get("assets-col-open") }}</th></tr></thead>
+      <tbody>
+      {%- for g in groups %}
+        <tr class="group">
+          <td colspan="3"><div class="grow"><button class="tw" type="button" data-grp="{{ g.key }}" aria-expanded="true" aria-label="{{ t.get("assets-toggle") }}: {{ g.host }}" hidden><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-down"/></svg></button><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-server"/></svg>{% if g.named %}<b>{{ g.host }}</b>{% else %}<span class="muted">{{ g.host }}</span>{% endif %}<span class="muted small">{{ g.count }}</span>{% if !g.sub.is_empty() %}<span class="muted small hide-sm">{{ g.sub }}{% if let Some(ts) = g.sub_time %} {{ ts|safe }}{% endif %}</span>{% endif %}{% if g.named %}<a class="small" href="/assets/new?host={{ g.host|urlencode }}">{{ t.get("assets-add-here") }}</a>{% endif %}</div></td>
+          <td class="hide-sm"></td>
+          <td>{% if g.open > 0 %}<span class="openn sev {{ g.band }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ g.band }}"/></svg>{{ t.get1("assets-group-open", "count", g.open) }}</span>{% else %}<span class="state ok"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-check"/></svg>{{ t.get("assets-open-none") }}</span>{% endif %}</td>
+        </tr>
+        {%- for r in g.rows %}
+        <tr class="sub" data-grp="{{ g.key }}">
+          <td><a href="/assets/{{ r.id }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ r.icon }}"/></svg> {{ r.name }}</a></td>
+          <td class="mono small">{{ r.version }}</td>
+          <td class="small">{{ r.kind }}</td>
+          <td class="mono small muted hide-sm cut">{{ r.detail }}</td>
+          <td>{% if r.open > 0 %}<a class="prio {{ r.band }}" href="/?asset={{ r.id }}" title="{{ t.get1("assets-open-count", "count", r.open) }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ r.band }}"/></svg><span>{{ r.prio }}</span></a> <span class="small muted">{{ r.open }}</span>{% else if !r.no_source.is_empty() %}<span class="tag" title="{{ t.get("asset-no-source-pi-note") }}">{{ r.no_source }}</span>{% else %}<span class="muted small">–</span>{% endif %}{% if r.min_prio > 0 %} <span class="tag" title="{{ t.get1("assets-min-prio-title", "prio", r.min_prio) }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-eye-off"/></svg>{{ r.min_prio }}</span>{% endif %}</td>
+        </tr>
+        {%- endfor %}
+        {%- if g.hidden > 0 %}
+        <tr class="sub more" data-grp="{{ g.key }}">
+          <td colspan="5" class="small muted">{{ g.hidden_text }} · <a href="/assets?host={{ g.host|urlencode }}">{{ t.get("assets-show-all") }}</a></td>
+        </tr>
+        {%- endif %}
+      {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="listfoot small muted">{{ t.get2("assets-shown", "shown", shown, "total", total) }}</p>
+  {%- endif %}
+</div>
+</div>
+</div>
+{% endblock %}

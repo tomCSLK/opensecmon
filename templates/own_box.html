@@ -1,0 +1,23 @@
+{#- "Betrifft": the own assets (or keywords) a vulnerability affects (`own`: OwnBox). Names and versions come
+    from the user, titles from the sources; all escaped. -#}
+<ul class="affected own">
+  {%- for o in own.rows %}
+  <li>
+    <div class="a1"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ o.icon }}"/></svg><a href="{{ o.href }}"><b>{{ o.name }}</b></a>{% if !o.host.is_empty() %}<span class="tag">{{ o.host }}</span>{% endif %}<span class="state {{ o.state_class }}">{{ o.state }}</span></div>
+    {%- if !o.installed.is_empty() || !o.fixed.is_empty() %}
+    <div class="a2">{% if !o.installed.is_empty() %}<span class="lab">{{ t.get("own-installed") }}</span><span class="ver-old mono">{{ o.installed }}</span>{% endif %}{% if !o.fixed.is_empty() %}<svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-chev-right"/></svg><span class="lab">{{ t.get("own-fixed") }}</span><span class="ver-fix mono">{{ o.fixed }}</span>{% endif %}</div>
+    {%- endif %}
+    <div class="a3"><span class="tag {{ o.conf_class }}">{{ o.confidence }}</span> <span title="{{ t.get("own-method") }}">{{ o.method }}</span>{% if !o.evidence.is_empty() %} · {{ t.get("own-evidence") }} <span class="mono">{{ o.evidence }}</span>{% endif %}</div>
+    {%- if !o.rating.is_empty() %}
+    <div class="a3">{{ o.rating }}</div>
+    {%- endif %}
+    <div class="a3 when">{{ t.get("own-found") }} {{ o.found|safe }}{% if !o.mailed.is_empty() %} · {{ t.get("own-mailed") }} {{ o.mailed|safe }}{% endif %}</div>
+    {%- if !o.note.is_empty() %}
+    <div class="a3 note">{{ o.note }}</div>
+    {%- endif %}
+  </li>
+  {%- endfor %}
+</ul>
+{%- if let Some(href) = own.inbox_href %}
+<p class="small own-link"><a href="{{ href }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-inbox"/></svg>{{ t.get("own-open-inbox") }}</a></p>
+{%- endif %}

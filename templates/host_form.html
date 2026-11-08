@@ -1,0 +1,93 @@
+{#- Step 1 of the wizard (new host) or the connection details of a stored host, with switching off and
+    removing. -#}
+{% extends "app.html" %}
+{% block title %}{{ title }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <a class="btn ghost sm" href="/assets/hosts"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("hosts-title") }}</a>
+    <h1>{{ title }}</h1>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+<section class="card wiz">
+  <div class="cbody">
+    {%- if host.is_none() %}
+    <ol class="steps">
+      {%- for s in steps %}
+      <li{% if s.done %} class="done"{% endif %}{% if s.current %} aria-current="step"{% endif %}>{{ s.label }}</li>
+      {%- endfor %}
+    </ol>
+    {%- endif %}
+    <form method="post" action="{{ action }}">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <div class="field-row">
+        <div class="field">
+          <label for="hName">{{ t.get("hosts-name") }}</label>
+          <input id="hName" name="name" type="text" value="{{ f.name }}" maxlength="100" required autocomplete="off">
+          <span class="help">{{ t.get("hosts-name-help") }}</span>
+        </div>
+        <div class="field">
+          <label for="hAddr">{{ t.get("hosts-address") }}</label>
+          <input id="hAddr" name="address" type="text" value="{{ f.address }}" maxlength="253" required autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="hPort">{{ t.get("hosts-port") }}</label>
+          <input id="hPort" name="port" type="number" min="1" max="65535" value="{{ f.port }}">
+        </div>
+        <div class="field">
+          <label for="hUser">{{ t.get("hosts-user") }}</label>
+          <input id="hUser" name="username" type="text" value="{{ f.username }}" maxlength="32" required autocomplete="off" spellcheck="false">
+          <span class="help">{{ t.get("hosts-user-help") }}</span>
+        </div>
+      </div>
+      {%- if host.is_some() %}
+      <p class="small muted">{{ t.get("hosts-moved-help") }}</p>
+      {%- endif %}
+      <div class="wizfoot">
+        <a class="btn" href="/assets/hosts">{{ t.get("asset-cancel") }}</a>
+        {%- if host.is_some() %}
+        <button class="btn primary" type="submit">{{ t.get("asset-save") }}</button>
+        {%- else %}
+        <button class="btn primary" type="submit">{{ t.get("hosts-next-step") }}<svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-right"/></svg></button>
+        {%- endif %}
+      </div>
+    </form>
+  </div>
+</section>
+{%- if let Some(h) = host %}
+<section class="card">
+  <header><h2>{{ t.get("hosts-manage") }}</h2></header>
+  <div class="cbody stack-sm">
+    <p class="small"><a href="/assets/hosts/{{ h.id }}/setup?step=2">{{ t.get("hosts-show-setup") }}</a>{% if h.packages > 0 %} · <a href="/assets?host={{ h.name|urlencode }}">{{ t.get1("hosts-show-packages", "count", h.packages) }}</a>{% endif %}</p>
+    {%- if let Some(k) = kernel %}
+    <p class="small">{% if k.reboot %}<span class="state warn"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg>{{ k.text }}</span>{% else %}<span class="muted">{{ k.text }}</span>{% endif %}</p>
+    {%- endif %}
+    {%- include "pro_setting.html" %}
+    <form method="post" action="/assets/hosts/{{ h.id }}/enabled" class="inline-row">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      {%- if h.enabled %}
+      <input type="hidden" name="enabled" value="0">
+      <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-pause-circle"/></svg>{{ t.get("hosts-disable") }}</button>
+      <span class="help">{{ t.get("hosts-disable-help") }}</span>
+      {%- else %}
+      <input type="hidden" name="enabled" value="1">
+      <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-play"/></svg>{{ t.get("hosts-enable") }}</button>
+      {%- endif %}
+    </form>
+    <form method="post" action="/assets/hosts/{{ h.id }}/delete" class="inline-row">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn danger" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-trash"/></svg>{{ t.get("hosts-delete") }}</button>
+      <span class="help">{{ t.get("hosts-delete-help") }}</span>
+    </form>
+  </div>
+</section>
+{%- endif %}
+</div>
+</div>
+{% endblock %}

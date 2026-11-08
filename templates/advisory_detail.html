@@ -1,0 +1,136 @@
+{#- The detail of one advisory (`d`: DetailView), beside the list or as a page of its own. Every text of the
+    CSAF document is data from outside and escaped. -#}
+<div class="dhead">
+  <a class="btn ghost back{% if d.standalone %} always{% endif %}" href="{{ d.back_href }}"{% if !d.standalone %} data-sheet-close{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("cve-back") }}</a>
+  <div class="badges">
+    {%- if d.band != "none" %}
+    <span class="prio big {{ d.band }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ d.band_icon }}"/></svg><span class="lbl">{{ d.severity }}</span></span>
+    {%- else %}
+    <span class="tag">{{ d.severity }}</span>
+    {%- endif %}
+    <span class="tag">{{ d.source }}</span>
+    <span class="ids">{{ d.display_id }}{% if let Some(tid) = d.tracking_id %} · <span title="{{ t.get("advisory-tracking-id") }}">{{ tid }}</span>{% endif %}</span>
+  </div>
+  <h1>{{ d.title }}</h1>
+  {%- if let Some(own) = d.own %}{% if let Some(a) = own.actions %}
+  {% include "triage_actions.html" %}
+  {%- endif %}{% endif %}
+</div>
+<div class="dbody">
+  {%- if let Some(own) = d.own %}
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-affected") }}</h3>
+    {% include "own_box.html" %}
+  </div>
+  {%- endif %}
+  <div class="dsec">
+    <h3>{{ t.get("advisory-section-summary") }}</h3>
+    {%- if d.summary.is_empty() %}
+    <p class="muted">–</p>
+    {%- else %}
+    <p class="desc prewrap">{{ d.summary }}</p>
+    {%- endif %}
+    <p class="small muted">
+      {{ t.get("advisory-publisher") }} {{ d.publisher }}
+      · {{ t.get("advisory-published") }} {{ d.published }} · {{ t.get("advisory-updated") }} {{ d.updated }}
+      {%- if !d.version.is_empty() %} · {{ t.get("advisory-version") }} {{ d.version }}{% endif %}
+      {%- if !d.status.is_empty() %} · {{ t.get("advisory-status") }} {{ d.status }}{% endif %}
+      {%- if let Some(cvss) = d.cvss %} · {{ t.get("advisory-cvss") }} {{ cvss }}{% endif %}
+    </p>
+    <p class="small muted">
+      {{ t.get("advisory-tlp") }} {{ d.tlp }}{% if !d.lang.is_empty() %} · {{ t.get("advisory-lang") }} {{ d.lang }}{% endif %} ·
+      {%- if d.hash_checked %} {{ t.get("advisory-hash-checked") }}{% else %} {{ t.get("advisory-hash-unchecked") }}{% endif %}
+    </p>
+  </div>
+
+  <div class="dsec">
+    <h3>{{ t.get("advisory-section-cves") }} ({{ d.cves.len() }})</h3>
+    {%- if d.cves.is_empty() %}
+    <p class="muted small">{{ t.get("advisory-no-cves") }}</p>
+    {%- else %}
+    <ul class="srcs cvelist">
+      {%- for c in d.cves %}
+      <li>
+        {%- if c.prio_band == "none" %}<span class="prio">–</span>{% else %}<span class="prio {{ c.prio_band }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ c.prio_band }}"/></svg><span>{{ c.prio }}</span></span>{% endif %}
+        <div>
+          <div><a class="nm mono" href="/cves/{{ c.id }}">{{ c.id }}</a>{% if c.kev %} <span class="kev" title="{{ t.get("cve-kev-title") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KEV</span>{% endif %}</div>
+          <div class="d{% if !c.known %} muted{% endif %}">{{ c.title }}</div>
+        </div>
+        <span></span>
+      </li>
+      {%- endfor %}
+    </ul>
+    {%- endif %}
+  </div>
+
+  <div class="dsec">
+    <h3>{{ t.get("advisory-section-products") }} ({{ d.products.len() }})</h3>
+    {%- if d.products.is_empty() %}
+    <p class="muted small">{{ t.get("advisory-no-products") }}</p>
+    {%- else %}
+    <p class="small muted">{{ t.get("advisory-products-help") }}</p>
+    <ul class="affected">
+      {%- for p in d.products %}
+      <li>
+        <div class="a1"><span class="tag {{ p.status }}">{{ p.status_label }}</span> <a href="{{ p.href }}"><b>{{ p.name }}</b></a></div>
+        {%- if !p.version.is_empty() || !p.cpe.is_empty() %}
+        <div class="a2 mono">{% if !p.version.is_empty() %}<span{% if p.range %} title="{{ t.get("advisory-version-range") }}"{% endif %}>{{ p.version }}</span>{% endif %}{% if !p.cpe.is_empty() %} <span class="muted">{{ p.cpe }}</span>{% endif %}</div>
+        {%- endif %}
+      </li>
+      {%- endfor %}
+    </ul>
+    {%- if let Some(more) = d.products_more %}
+    <p class="small muted">{{ more }}</p>
+    {%- endif %}
+    {%- endif %}
+  </div>
+
+  {%- if !d.notes.is_empty() %}
+  <div class="dsec">
+    <h3>{{ t.get("advisory-section-notes") }}</h3>
+    {%- for n in d.notes %}
+    <details class="note"{% if loop.first %} open{% endif %}>
+      <summary>{% if n.title.is_empty() %}{{ n.category }}{% else %}{{ n.title }}{% endif %}</summary>
+      <p class="prewrap small">{{ n.text }}</p>
+    </details>
+    {%- endfor %}
+  </div>
+  {%- endif %}
+
+  <div class="dsec">
+    <h3>{{ t.get("advisory-section-sources") }}</h3>
+    <ul class="srcs">
+      {%- if !d.web_url.is_empty() %}
+      <li>
+        <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-file"/></svg>
+        <div><div><span class="tag">{{ d.source }}</span> <span class="nm">{{ t.get("advisory-open-portal") }}</span></div><div class="d url">{{ d.web_url }}</div></div>
+        <a class="iconbtn" href="{{ d.web_url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t.get("advisory-open-portal") }}" title="{{ t.get("cve-open-source") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-external"/></svg></a>
+      </li>
+      {%- endif %}
+      <li>
+        <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-file"/></svg>
+        <div><div><span class="tag">CSAF</span> <span class="nm">{{ t.get("advisory-open-csaf") }}</span></div><div class="d url">{{ d.doc_url }}</div></div>
+        <a class="iconbtn" href="{{ d.doc_url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t.get("advisory-open-csaf") }}" title="{{ t.get("cve-open-source") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-external"/></svg></a>
+      </li>
+    </ul>
+  </div>
+
+  {%- if !d.refs.is_empty() %}
+  <div class="dsec">
+    <h3>{{ t.get("advisory-section-refs") }} ({{ d.refs.len() }})</h3>
+    <ul class="srcs refs">
+      {%- for r in d.refs %}
+      <li>
+        <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-external"/></svg>
+        <div>
+          <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer nofollow" class="nm">{{ r.host }}</a>
+          {%- if !r.summary.is_empty() %} <span class="muted small">{{ r.summary }}</span>{% endif %}
+          <div class="d url">{{ r.url }}</div>
+        </div>
+        <span></span>
+      </li>
+      {%- endfor %}
+    </ul>
+  </div>
+  {%- endif %}
+</div>

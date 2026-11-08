@@ -1,0 +1,71 @@
+#!/bin/sh
+# postinst of the opensecmon .deb (dev/deb.sh): service user, owners of /etc/opensecmon, encryption key, data and
+# backup directories. cargo-deb inserts the systemd handling (enable, restart on upgrade) at the marker below.
+set -e
+
+USER_NAME=opensecmon
+CONF_DIR=/etc/opensecmon
+CONFIG=$CONF_DIR/config.toml
+KEY=$CONF_DIR/secret.key
+TLS_CERT=$CONF_DIR/tls-cert.pem
+TLS_KEY=$CONF_DIR/tls-key.pem
+STATE_DIR=/var/lib/opensecmon
+BACKUP_DIR=/var/backups/opensecmon
+
+if [ "$1" = configure ]; then
+  if ! getent passwd "$USER_NAME" >/dev/null; then
+    useradd --system --user-group --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin "$USER_NAME"
+  fi
+  # The service reads its config through the group. A stat override keeps these owners on every upgrade.
+  if ! dpkg-statoverride --list "$CONF_DIR" >/dev/null; then
+    dpkg-statoverride --update --add root "$USER_NAME" 0750 "$CONF_DIR"
+  fi
+  if ! dpkg-statoverride --list "$CONFIG" >/dev/null; then
+    dpkg-statoverride --update --add root "$USER_NAME" 0640 "$CONFIG"
+  fi
+  if [ ! -e "$KEY" ]; then
+    OPENSECMON_SECRET_KEY_FILE="$KEY" /usr/bin/opensecmon --config "$CONFIG" key generate >/dev/null
+    chown "$USER_NAME:$USER_NAME" "$KEY"
+    NEW_KEY=yes
+  fi
+  # Certificate for the built-in HTTPS: self-signed, for the host name and the addresses of this server.
+  if [ ! -e "$TLS_CERT" ] && [ ! -e "$TLS_KEY" ]; then
+    NAMES=""
+    for name in $(hostname -f 2>/dev/null) $(hostname -I 2>/dev/null); do
+      NAMES="$NAMES --name $name"
+    done
+    # shellcheck disable=SC2086
+    if /usr/bin/opensecmon --config "$CONFIG" tls generate --cert "$TLS_CERT" --key "$TLS_KEY" $NAMES; then
+      chown "$USER_NAME:$USER_NAME" "$TLS_KEY"
+    else
+      echo "opensecmon: could not create the HTTPS certificate; create one with 'opensecmon tls generate' (docs/operations.md)."
+    fi
+  fi
+  # systemd creates the state directory on the first start; `user add` runs before that.
+  if [ ! -d "$STATE_DIR" ]; then
+    install -d -m 0750 -o "$USER_NAME" -g "$USER_NAME" "$STATE_DIR"
+  fi
+  if [ ! -d "$BACKUP_DIR" ]; then
+    install -d -m 0700 -o "$USER_NAME" -g "$USER_NAME" "$BACKUP_DIR"
+  fi
+fi
+
+#DEBHELPER#
+
+if [ "$1" = configure ]; then
+  if [ -d /run/systemd/system ] && systemctl --quiet is-enabled opensecmon-backup.timer 2>/dev/null; then
+    deb-systemd-invoke start opensecmon-backup.timer >/dev/null || true
+  fi
+  if [ "${NEW_KEY:-}" = yes ]; then
+    echo "opensecmon: generated $KEY - back it up separately from the database."
+  fi
+  if [ -z "$2" ] && [ ! -e "$STATE_DIR/opensecmon.db" ]; then
+    echo "opensecmon: next steps:"
+    echo "  1. sudo -u $USER_NAME opensecmon --config $CONFIG user add <name>"
+    echo "  2. sudo systemctl start opensecmon"
+    echo "  3. open https://<this server>:8444 and compare the certificate's fingerprint (above) before accepting it"
+    echo "  optional: allowed_hosts in $CONFIG; behind a reverse proxy see docs/operations.md"
+  fi
+fi
+
+exit 0

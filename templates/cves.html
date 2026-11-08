@@ -1,0 +1,132 @@
+{#- All CVEs: list with filters on the left, the detail of the chosen CVE on the right (docs/entwurf/cves.html).
+    Filters, sorting and pages are links; static/cves.js only swaps the detail without a full reload. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("cves-title") }} – opensecmon{% endblock %}
+{% block main_class %}full{% endblock %}
+{% block content %}
+<div class="cvelayout" id="cvelayout"{% if sheet_open %} data-sheet-open{% endif %}>
+  <div class="main">
+    <form class="toolbar" method="get" action="/cves" role="search">
+      <h1>{{ t.get("cves-title") }}</h1>
+      {% include "view_tabs.html" %}
+      <label class="sr-only" for="cq">{{ t.get("cves-search") }}</label>
+      <input id="cq" name="q" type="search" value="{{ q }}" placeholder="{{ t.get("cves-search-placeholder") }}" maxlength="200" autocomplete="off">
+      {%- for (name, value) in hidden %}
+      <input type="hidden" name="{{ name }}" value="{{ value }}">
+      {%- endfor %}
+      <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-search"/></svg>{{ t.get("cves-search") }}</button>
+      <span class="sp"></span>
+      <span class="muted small" role="status">{{ count_text }}</span>
+      <a class="btn ghost" href="{{ export_href }}" download title="{{ t.get("export-download-title") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>CSV</a>
+    </form>
+    <div class="chips">
+      <details class="chipmenu">
+        <summary class="chip">{{ period_label }}<svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-chev-down"/></svg></summary>
+        <div class="menu-pop">
+          {%- for p in periods %}
+          <a href="{{ p.href }}"{% if p.current %} aria-current="true"{% endif %}>{{ p.label }}</a>
+          {%- endfor %}
+        </div>
+      </details>
+      {%- for c in chips %}
+      {%- if c.active %}
+      <span class="chip">{{ c.label }}<a href="{{ c.href }}" aria-label="{{ t.get("cves-remove") }}: {{ c.label }}" title="{{ t.get("cves-remove") }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></a></span>
+      {%- else %}
+      <a class="chip off" href="{{ c.href }}">{{ c.label }}</a>
+      {%- endif %}
+      {%- endfor %}
+      <details class="chipmenu">
+        <summary class="chip add">+ {{ t.get("cves-filter-more") }}</summary>
+        <form class="menu-pop filterform" method="get" action="/cves">
+          {%- if !q.is_empty() %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+          {%- for (name, value) in hidden %}
+          {%- if *name != "sev" && *name != "vendor" && *name != "rejected" %}
+          <input type="hidden" name="{{ name }}" value="{{ value }}">
+          {%- endif %}
+          {%- endfor %}
+          <div class="field">
+            <label for="fsev">{{ t.get("cves-filter-band") }}</label>
+            <select id="fsev" name="sev">
+              <option value="">{{ t.get("cves-filter-band-any") }}</option>
+              {%- for b in bands %}
+              <option value="{{ b.href }}"{% if b.current %} selected{% endif %}>{{ b.label }}</option>
+              {%- endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="fvendor">{{ t.get("cves-filter-vendor") }}</label>
+            <input id="fvendor" name="vendor" type="text" value="{{ vendor }}" maxlength="100" autocomplete="off">
+            <span class="help">{{ t.get("cves-filter-vendor-help") }}</span>
+          </div>
+          <label class="check"><input type="checkbox" name="rejected" value="1"{% if rejected %} checked{% endif %}> {{ t.get("cves-filter-rejected") }}</label>
+          <button class="btn primary sm" type="submit">{{ t.get("cves-filter-apply") }}</button>
+        </form>
+      </details>
+    </div>
+    {%- if empty_db %}
+    <div class="empty">
+      <div>
+        <svg class="ico xl neutral" aria-hidden="true" focusable="false"><use href="#i-list"/></svg>
+        <h2>{{ t.get("cves-empty-db-title") }}</h2>
+        <p>{{ t.get("cves-empty-db-text") }}</p>
+        <a class="btn" href="/sources"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-rss"/></svg>{{ t.get("nav-sources") }}</a>
+      </div>
+    </div>
+    {%- else if rows.is_empty() %}
+    <div class="empty">
+      <div>
+        <svg class="ico xl neutral" aria-hidden="true" focusable="false"><use href="#i-search"/></svg>
+        <h2>{{ t.get("cves-empty-title") }}</h2>
+        {%- if let Some(id) = unknown_id %}
+        <p>{{ t.get("cves-unknown-id") }} <span class="mono">{{ id }}</span></p>
+        {%- endif %}
+        <p>{{ t.get("cves-empty-text") }}</p>
+      </div>
+    </div>
+    {%- else %}
+    <div class="tblwrap">
+      <table class="tbl" id="ctbl">
+        <thead>
+          <tr>
+            {%- for c in columns %}
+            <th{% if !c.class.is_empty() %} class="{{ c.class }}"{% endif %}{% if c.sorted %} aria-sort="descending"{% endif %}>
+              {%- if let Some(href) = c.href %}<a href="{{ href }}">{{ c.label }}{% if c.sorted %}<svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg>{% endif %}</a>{% else %}{{ c.label }}{% endif -%}
+            </th>
+            {%- endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {%- for r in rows %}
+          <tr class="click" data-href="{{ r.href }}"{% if r.selected %} aria-selected="true"{% endif %}>
+            <td><span class="prio {{ r.prio_band }}" title="{{ r.prio_title }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ r.prio_band }}"/></svg><span>{{ r.prio }}</span></span></td>
+            <td class="mono small nowrap"><a href="/cves/{{ r.id }}" data-detail>{{ r.id }}</a></td>
+            <td class="t" title="{{ r.title }}">{% if r.rejected %}<span class="tag">{{ t.get("cve-rejected") }}</span> {% endif %}{{ r.title }}</td>
+            <td class="num"><span class="sev {{ r.cvss_band }}">{{ r.cvss }}</span></td>
+            <td class="num hide-sm">{{ r.epss }}</td>
+            <td>{% if r.kev %}<span class="kev" title="{{ t.get("cve-kev-title") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KEV</span>{% endif %}</td>
+            <td class="num hide-sm">{{ r.published }}</td>
+          </tr>
+          {%- endfor %}
+        </tbody>
+      </table>
+    </div>
+    <nav class="pager" aria-label="{{ t.get("cves-pages") }}">
+      <span>{{ page_text }} · {{ t.get("cves-per-page") }}</span>
+      <span class="pages">
+        {%- for p in pages %}
+        {%- if p.current %}<span aria-current="page">{{ p.label }}</span>{% else if let Some(href) = p.href %}<a href="{{ href }}">{{ p.label }}</a>{% else %}<span>{{ p.label }}</span>{% endif %}
+        {%- endfor %}
+      </span>
+    </nav>
+    {%- endif %}
+  </div>
+  <section class="pane detail" id="detail" aria-label="{{ t.get("cves-detail") }}">
+    {%- if let Some(d) = detail %}
+    {% include "cve_detail.html" %}
+    {%- else %}
+    <div class="empty"><div><p>{{ t.get("cves-detail-empty") }}</p></div></div>
+    {%- endif %}
+  </section>
+</div>
+<div class="scrim" data-sheet-close></div>
+{% endblock %}

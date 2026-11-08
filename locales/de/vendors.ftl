@@ -1,0 +1,33 @@
+# Seite „Hersteller-CSAF“: die CSAF-Anbieter der Hersteller.
+
+vendors-title = Hersteller-CSAF
+vendors-subtitle = CSAF-Anbieter von Herstellern, deren Sicherheitshinweise geladen werden (nur TLP:WHITE/CLEAR).
+vendors-back = Quellen
+vendors-add = Anbieter hinzufügen
+vendors-add-help = Aus der Anbieterliste des BSI wählen oder die Adresse der Datei provider-metadata.json eines Herstellers angeben. Die Datei wird beim Hinzufügen gelesen.
+vendors-listed = Aus der Liste des BSI
+vendors-listed-choose = – wählen –
+vendors-listed-empty = Die Liste ist noch nicht geladen.
+vendors-lister-load = Anbieterliste vom BSI laden
+vendors-lister-loaded = Liste geladen am
+vendors-lister-failed = Die Anbieterliste konnte nicht geladen werden: { $error }
+vendors-own-url = Oder eigene Adresse
+vendors-own-url-help = Meist https://<Domain>/.well-known/csaf/provider-metadata.json
+vendors-since = Dokumente ab
+vendors-since-help = Ältere Dokumente werden nicht geladen. Leer: alle (bei großen Anbietern zehntausende).
+vendors-since-invalid = Bitte ein Datum wählen, das nicht in der Zukunft liegt.
+vendors-heavy-note = VEX-Verzeichnisse (eine Datei je CVE, z. B. bei Red Hat) sind beim Hinzufügen ausgeschaltet und lassen sich unten je Anbieter einschalten.
+vendors-add-submit = Hinzufügen
+vendors-url-invalid = Bitte eine HTTPS-Adresse angeben oder einen Anbieter aus der Liste wählen.
+vendors-exists = Dieser Anbieter ist schon eingetragen.
+vendors-metadata-failed = Die Anbieterdatei konnte nicht gelesen werden: { $error }
+vendors-none = Noch kein Anbieter eingetragen. Die Hinweise des BSI CERT-Bund decken viele Hersteller schon ab.
+vendors-documents = Advisories
+vendors-checked = zuletzt abgerufen
+vendors-never = noch nie
+vendors-enabled = Laden
+vendors-dists = Verteilungen
+vendors-dists-help = Nur angehakte Verteilungen werden geladen.
+vendors-dist-directory = Verzeichnis (changes.csv)
+vendors-save = Speichern
+vendors-delete = Entfernen (mit seinen Advisories)

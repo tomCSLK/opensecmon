@@ -1,0 +1,10 @@
+{#- The sections of the settings; `section` names the current one. -#}
+<nav class="subnav" aria-label="{{ t.get("settings-sections") }}">
+  <a href="/settings/alerts"{% if section == "alerts" %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-mail"/></svg>{{ t.get("settings-alerts") }}</a>
+  <a href="/settings/report"{% if section == "report" %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>{{ t.get("settings-report") }}</a>
+  <a href="/settings/priority"{% if section == "priority" %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-activity"/></svg>{{ t.get("settings-priority") }}</a>
+  <a href="/settings/retention"{% if section == "retention" %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-database"/></svg>{{ t.get("settings-retention") }}</a>
+  <a href="/settings/mail"{% if section == "mail" %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-server"/></svg>{{ t.get("settings-mail") }}</a>
+  <a href="/settings/account"{% if section == "account" %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-user"/></svg>{{ t.get("settings-account") }}</a>
+  <a href="/settings/audit"{% if section == "audit" %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-history"/></svg>{{ t.get("nav-audit") }}</a>
+</nav>

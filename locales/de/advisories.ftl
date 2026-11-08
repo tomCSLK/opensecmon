@@ -1,0 +1,56 @@
+# Advisories (CSAF-Dokumente von BSI CERT-Bund und Herstellern): Liste und Detail.
+
+advisories-title = Advisories
+advisories-count = { $shown } von { $all } Advisories
+advisories-search-placeholder = Volltext: Kennung, Titel, Produkt oder CVE-Kennung
+advisories-filter-source = Quelle
+advisories-filter-source-any = alle
+advisories-filter-vendor-help = Hersteller aus dem CSAF-Produktbaum, Groß- und Kleinschreibung und Leerzeichen egal (z. B. „avm“, „opensource“).
+advisories-source-vendor = Hersteller-CSAF
+advisories-empty-db-title = Noch keine Advisories geladen
+advisories-empty-db-text = Die Liste füllt sich mit dem ersten Abruf von BSI CERT-Bund (rund 15 000 Dokumente, beim ersten Mal einige Minuten) und der Hersteller-CSAF.
+advisories-empty-title = Keine passenden Advisories
+advisories-empty-text = Filter lockern oder einen längeren Zeitraum wählen.
+advisories-detail-empty = Eine Zeile wählen, um die Details zu sehen.
+advisories-col-severity = Schweregrad
+advisories-col-id = Kennung
+advisories-col-title = Titel
+advisories-col-publisher = Herausgeber
+advisories-col-cves = CVEs
+advisories-col-updated = Aktualisiert
+
+advisory-section-summary = Zusammenfassung
+advisory-section-cves = CVEs
+advisory-section-products = Produkte
+advisory-section-notes = Hinweise des Herausgebers
+advisory-section-sources = Quellen
+advisory-section-refs = Weitere Links
+advisory-publisher = Herausgeber
+advisory-published = Veröffentlicht
+advisory-updated = Aktualisiert
+advisory-version = Version
+advisory-status = Status
+advisory-cvss = höchster CVSS-Wert
+advisory-tlp = TLP:
+advisory-lang = Sprache
+advisory-hash-checked = Prüfsumme geprüft
+advisory-hash-unchecked = ohne Prüfsumme geladen (der Anbieter stellt keine bereit)
+advisory-tracking-id = Kennung im CSAF-Dokument
+advisory-open-portal = Meldung beim Herausgeber
+advisory-open-csaf = CSAF-Dokument
+advisory-products-help = Aus dem CSAF-Produktbaum. Ein Klick zeigt alle Advisories zu diesem Hersteller.
+advisory-products-more = { $shown } von { $all } Produkten gezeigt.
+advisory-version-range = Versionsbereich
+advisory-no-cves = Das Dokument nennt keine CVE.
+advisory-no-products = Das Dokument nennt keine Produkte.
+advisory-cve-unknown = (nicht in der CVE-Liste)
+advisory-status-affected = betroffen
+advisory-status-fixed = behoben
+advisory-status-not-affected = nicht betroffen
+advisory-status-investigating = wird untersucht
+advisory-status-recommended = empfohlen
+advisory-status-listed = genannt
+
+view-label = Ansicht
+view-cves = CVEs
+view-advisories = Advisories

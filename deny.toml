@@ -1,0 +1,45 @@
+# cargo deny check: licenses, sources, duplicate crates and RustSec advisories of the dependencies.
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# opensecmon is built for Linux servers only
+targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+
+[advisories]
+# report unmaintained and unsound crates anywhere in the tree
+unmaintained = "all"
+unsound = "all"
+ignore = []
+
+[licenses]
+# Licenses compatible with AGPL-3.0-or-later that occur in the tree (MPL-2.0 and OFL-1.1 are fine as well; add
+# them when a crate brings them). Where a crate offers a choice, cargo deny takes an allowed one.
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.9
+# The fonts (Fira Sans, Fira Code, OFL-1.1) are files in static/fonts and listed in THIRD-PARTY-LICENSES.txt.
+# opensecmon itself is not published on crates.io
+private = { ignore = true }
+
+[bans]
+# Several versions of a crate only warn: they come in through dependencies.
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

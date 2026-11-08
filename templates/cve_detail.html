@@ -1,0 +1,220 @@
+{#- The detail of one CVE (`d`: DetailView), beside the list or as a page of its own. Every text from the
+    CVE records is data from outside and escaped. -#}
+<div class="dhead">
+  <a class="btn ghost back{% if d.standalone %} always{% endif %}" href="{{ d.back_href }}"{% if !d.standalone %} data-sheet-close{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("cve-back") }}</a>
+  <div class="badges">
+    <span class="prio big {{ d.prio_band }}" title="{{ t.get("cve-prio-label") }} {{ d.prio }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ d.prio_band }}"/></svg><span>{{ d.prio }}</span><span class="lbl">{{ d.prio_label }}</span></span>
+    {%- if d.kev.is_some() %}
+    <span class="kev" title="{{ t.get("cve-kev-title") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KEV</span>
+    {%- endif %}
+    {%- if d.rejected %}
+    <span class="tag">{{ t.get("cve-rejected") }}</span>
+    {%- endif %}
+    <span class="ids">{{ d.id }}</span>
+  </div>
+  <h1>{{ d.title }}</h1>
+  {%- if let Some(own) = d.own %}{% if let Some(a) = own.actions %}
+  {% include "triage_actions.html" %}
+  {%- endif %}{% endif %}
+</div>
+<div class="dbody">
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-affected") }}</h3>
+    {%- if let Some(own) = d.own %}
+    {% include "own_box.html" %}
+    {%- if !d.affected.is_empty() %}
+    <p class="muted small">{{ t.get("cve-record-affected") }}</p>
+    {%- endif %}
+    {%- else %}
+    <p class="muted small">{{ t.get("cve-no-assets") }}</p>
+    {%- endif %}
+    {%- if !d.affected.is_empty() %}
+    <ul class="affected">
+      {%- for a in d.affected %}
+      <li>
+        <div class="a1"><b>{{ a.name }}</b>{% if !a.package.is_empty() %}<span class="tag">{{ a.package }}</span>{% endif %}</div>
+        {%- if !a.versions.is_empty() %}
+        <div class="a2 mono">{% for v in a.versions %}<span class="ver-old">{{ v }}</span>{% endfor %}</div>
+        {%- endif %}
+      </li>
+      {%- endfor %}
+    </ul>
+    {%- endif %}
+  </div>
+
+  {%- if !d.distros.is_empty() %}
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-distros") }}</h3>
+    <p class="muted small">{{ t.get("cve-distros-help") }}</p>
+    {%- for g in d.distros %}
+    <div class="distro">
+      <div class="distro-head">
+        <b>{{ g.name }}</b>
+        {%- if !g.priority.is_empty() %} <span class="tag">{{ t.get("distro-priority") }} {{ g.priority }}</span>{% endif %}
+        <a class="small" href="{{ g.link }}" target="_blank" rel="noopener noreferrer">{{ g.link_label }}<svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-external"/></svg></a>
+      </div>
+      <ul class="affected">
+        {%- for r in g.rows %}
+        <li>
+          <div class="a1"><b>{{ r.release }}</b><span class="tag mono">{{ r.package }}</span><span class="state {{ r.class }}">{{ r.state }}{% if !r.version.is_empty() %} <span class="mono">{{ r.version }}</span>{% endif %}</span></div>
+          {%- if !r.note.is_empty() || !r.advisories.is_empty() %}
+          <div class="a3">{{ r.note }}{% if !r.note.is_empty() && !r.advisories.is_empty() %} · {% endif %}{% for a in r.advisories %}<a class="mono" href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.id }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</div>
+          {%- endif %}
+        </li>
+        {%- endfor %}
+      </ul>
+      {%- if !g.more.is_empty() %}
+      <p class="small muted">{{ g.more }}</p>
+      {%- endif %}
+    </div>
+    {%- endfor %}
+  </div>
+  {%- endif %}
+
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-rating") }}</h3>
+    {%- if let Some(k) = d.kev %}
+    <div class="notice kevn">
+      <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>
+      <div>
+        <b>{{ t.get("cve-kev-title") }}</b> ({{ t.get("cve-kev-since") }} {{ k.added }}).<br>
+        {%- if k.due_passed %}
+        <span class="sev crit">{{ t.get("cve-kev-due-passed") }} {{ k.due }}.</span>
+        {%- else %}
+        {{ t.get("cve-kev-due") }} {{ k.due }}.
+        {%- endif %}
+        {%- if k.ransomware %} {{ t.get("cve-kev-ransomware") }}{% endif %}
+        {%- if !k.action.is_empty() %}<br><span class="muted">{{ t.get("cve-kev-action") }}</span> {{ k.action }}{% endif %}
+      </div>
+    </div>
+    {%- endif %}
+    <div class="scores">
+      <div class="score">
+        <div class="k">{{ d.cvss_label }}</div>
+        {%- if let Some(score) = d.cvss %}
+        <div class="v sev {{ d.cvss_band }}">{{ score }}</div>
+        <div class="s">{{ d.cvss_band_label }}</div>
+        {%- else %}
+        <div class="v muted">–</div>
+        <div class="s">{{ t.get("cve-no-score") }}</div>
+        {%- endif %}
+      </div>
+      <div class="score">
+        <div class="k">{{ t.get("cve-epss-label") }}</div>
+        {%- if let Some(epss) = d.epss %}
+        <div class="v">{{ epss }}</div>
+        <div class="bar" role="img" aria-label="{{ t.get("cve-percentile") }} {{ d.percentile }}"><i class="{{ d.percentile_class }}"></i></div>
+        <div class="s">{{ t.get("cve-percentile") }} {{ d.percentile }}</div>
+        {%- else %}
+        <div class="v muted">–</div>
+        <div class="s">{{ t.get("cve-no-score") }}</div>
+        {%- endif %}
+      </div>
+      <div class="score">
+        <div class="k">{{ t.get("cve-prio-label") }}</div>
+        <div class="v sev {{ d.prio_band }}">{{ d.prio }}</div>
+        <div class="s">{{ d.prio_label }}</div>
+      </div>
+    </div>
+    {%- if !d.vector.is_empty() %}
+    <div class="vector">
+      {%- for p in d.vector %}
+      <div><span>{{ p.name }}</span><span{% if p.bad %} class="bad"{% endif %}>{{ p.value }}</span></div>
+      {%- endfor %}
+    </div>
+    {%- endif %}
+    {%- if !d.vector_raw.is_empty() %}
+    <p class="vector-raw">{{ d.vector_raw }}{% if !d.cvss_source.is_empty() %} · {{ t.get("cve-score-source") }} {{ d.cvss_source }}{% endif %}</p>
+    {%- endif %}
+    <details class="formula">
+      <summary>{{ t.get("cve-formula-title") }} {{ d.prio }}</summary>
+      <table>
+        {%- for line in d.formula %}
+        <tr><td>{{ line.label }}</td><td>{{ line.value }}</td></tr>
+        {%- endfor %}
+        <tr class="sum"><td>{{ t.get("cve-formula-sum") }}</td><td>{{ d.prio }}</td></tr>
+      </table>
+    </details>
+  </div>
+
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-description") }}</h3>
+    {%- if d.description.is_empty() %}
+    <p class="muted">–</p>
+    {%- else %}
+    <p class="desc prewrap">{{ d.description }}</p>
+    {%- endif %}
+    <p class="small muted">
+      {{ t.get("cve-published") }} {{ d.published }} · {{ t.get("cve-updated") }} {{ d.updated }}
+      {%- if !d.assigner.is_empty() %} · {{ t.get("cve-assigner") }} {{ d.assigner }}{% endif %}
+      {%- if let Some(status) = d.nvd_status %} · {{ t.get("cve-nvd-status") }} {{ status }}{% endif %}
+    </p>
+    {%- if !d.cwes.is_empty() %}
+    <p class="small">{% for cwe in d.cwes %}<span class="tag">{{ cwe }}</span> {% endfor %}</p>
+    {%- endif %}
+  </div>
+
+  {%- if !d.metrics.is_empty() %}
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-metrics") }} ({{ d.metrics.len() }})</h3>
+    <ul class="srcs">
+      {%- for m in d.metrics %}
+      <li>
+        <span class="sev {{ m.band }} mono">{{ m.score }}</span>
+        <div>
+          <div><span class="tag">{{ m.provider }}</span> <span class="nm">CVSS {{ m.version }}</span> <span class="muted small">{{ m.source }}</span></div>
+          <div class="d vector-raw">{{ m.vector }}</div>
+        </div>
+        <span></span>
+      </li>
+      {%- endfor %}
+    </ul>
+  </div>
+  {%- endif %}
+
+  {%- if !d.products.is_empty() %}
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-products") }}</h3>
+    <p class="small muted">{{ t.get("cve-products-vendor-help") }}</p>
+    <p class="taglist">{% for p in d.products %}<a class="tag" href="{{ p.href }}" title="{{ p.origin }}">{{ p.name }}</a> {% endfor %}</p>
+  </div>
+  {%- endif %}
+
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-sources") }}</h3>
+    <ul class="srcs">
+      {%- for a in d.advisories %}
+      <li>
+        <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-shield"/></svg>
+        <div><div><span class="tag">{{ a.kind }}</span> <a class="nm" href="{{ a.href }}">{{ a.id }}</a></div><div class="muted small">{{ a.title }}{% if !a.publisher.is_empty() %} · {{ a.publisher }}{% endif %}</div></div>
+      </li>
+      {%- endfor %}
+      {%- for l in d.links %}
+      <li>
+        <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-file"/></svg>
+        <div><div><span class="tag">{{ l.kind }}</span> <span class="nm">{{ l.label }}</span></div></div>
+        <a class="iconbtn" href="{{ l.url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ t.get("cve-open-source") }}: {{ l.label }}" title="{{ t.get("cve-open-source") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-external"/></svg></a>
+      </li>
+      {%- endfor %}
+    </ul>
+  </div>
+
+  {%- if !d.refs.is_empty() %}
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-refs") }} ({{ d.refs.len() }})</h3>
+    <ul class="srcs refs">
+      {%- for r in d.refs %}
+      <li>
+        <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-external"/></svg>
+        <div>
+          <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer nofollow" class="nm">{{ r.host }}</a>
+          {%- if !r.tags.is_empty() %} <span class="muted small">{{ r.tags }}</span>{% endif %}
+          <div class="d url">{{ r.url }}</div>
+        </div>
+        <span></span>
+      </li>
+      {%- endfor %}
+    </ul>
+  </div>
+  {%- endif %}
+</div>

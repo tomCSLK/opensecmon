@@ -1,0 +1,84 @@
+{#- Programs, store apps, snaps and Flatpaks the computers report and no rule assigns. Names, publishers and
+    versions come from the computers and are escaped. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("unassigned-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ t.get("assets-title") }}</h1>
+    <p>{{ t.get("assets-subtitle") }}</p>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+<div class="card">
+  <header><h2>{{ t.get("unassigned-title") }}</h2></header>
+  <div class="cbody small muted">{{ t.get("unassigned-text") }}{% if !built_in.is_empty() %} {{ built_in }}{% endif %}</div>
+  {%- if entries.is_empty() %}
+  <div class="empty">
+    <div>
+      <svg class="ico xl neutral" aria-hidden="true" focusable="false"><use href="#i-check-circle"/></svg>
+      <p>{{ t.get("unassigned-none") }}</p>
+    </div>
+  </div>
+  {%- else %}
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th>{{ t.get("unassigned-col-entry") }}</th><th class="hide-sm">{{ t.get("unassigned-col-versions") }}</th><th>{{ t.get("unassigned-col-computers") }}</th><th></th></tr></thead>
+      <tbody>
+      {%- for e in entries %}
+        <tr>
+          <td><b>{{ e.name }}</b><div class="small muted">{{ e.type_label }}{% if !e.publisher.is_empty() %} · {{ e.publisher }}{% endif %}{% if e.user_scope %} · {{ t.get("unassigned-user-scope") }}{% endif %}</div></td>
+          <td class="small mono hide-sm">{% if e.versions.is_empty() %}<span class="muted">–</span>{% else %}{{ e.versions }}{% endif %}</td>
+          <td class="small"><b>{{ e.count }}</b> <span class="muted">{{ e.computers }}</span></td>
+          <td>
+            <div class="inline-row">
+              <a class="btn sm" href="/assets/unassigned/assign?type={{ e.item_type }}&amp;key={{ e.key|urlencode }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-tag"/></svg>{{ t.get("unassigned-assign") }}</a>
+              <form class="inline-form" method="post" action="/assets/unassigned/ignore">
+                <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+                <input type="hidden" name="type" value="{{ e.item_type }}">
+                <input type="hidden" name="key" value="{{ e.key }}">
+                <button class="btn sm ghost" type="submit"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-eye-off"/></svg>{{ t.get("unassigned-ignore") }}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+</div>
+<section class="card">
+  <header><h2>{{ t.get("unassigned-rules") }}</h2></header>
+  <div class="cbody small muted">{{ t.get("unassigned-rules-text") }}</div>
+  {%- if rules.is_empty() %}
+  <div class="cbody small muted">{{ t.get("unassigned-rules-none") }}</div>
+  {%- else %}
+  <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th>{{ t.get("unassigned-col-entry") }}</th><th>{{ t.get("asset-product") }}</th><th class="num">{{ t.get("unassigned-col-computers") }}</th><th></th></tr></thead>
+      <tbody>
+      {%- for r in rules %}
+        <tr>
+          <td><span class="mono">{{ r.key }}</span><div class="small muted">{{ r.type_label }}</div></td>
+          <td>{% if r.product.is_empty() %}<span class="muted">{{ t.get("unassigned-rule-ignored") }}</span>{% else %}{{ r.product }}{% endif %}</td>
+          <td class="num">{{ r.computers }}</td>
+          <td>
+            <form class="inline-form" method="post" action="/assets/unassigned/rules/{{ r.id }}/delete">
+              <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+              <button class="btn sm ghost danger" type="submit"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-trash"/></svg>{{ t.get("unassigned-rule-delete") }}</button>
+            </form>
+          </td>
+        </tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+</section>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "app.html" %}
+{% block title %}{{ t.get("settings-report") }} – opensecmon{% endblock %}
+{% block content %}
+{% let section = "report" %}
+<div class="pagehead"><div><h1>{{ t.get("nav-settings") }}</h1></div></div>
+<div class="split settings">
+{% include "settings_nav.html" %}
+<div class="stack">
+  {% include "flash.html" %}
+  {% if let Some(message) = sent_ok %}
+  <p class="notice good" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-check-circle"/></svg><span>{{ message }}</span></p>
+  {% endif %}
+  {% if let Some(message) = sent_error %}
+  <p class="notice bad" role="alert"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ message }}</span></p>
+  {% endif %}
+  {% if !mail_enabled %}
+  <p class="notice warn" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ t.get("alerts-mail-off") }} <a href="/settings/mail">{{ t.get("alerts-mail-settings") }}</a></span></p>
+  {% endif %}
+
+  <section class="card">
+    <header><h2>{{ t.get("report-title") }}</h2></header>
+    <form method="post" action="/settings/report">
+      <div class="cbody">
+        <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+        <p class="muted">{{ t.get("report-subtitle") }}</p>
+        <div class="field-row">
+          <div class="field">
+            <span class="label">{{ t.get("report-title") }}</span>
+            <label class="switch"><input type="checkbox" name="report" value="on"{% if form.report %} checked{% endif %}> {{ t.get("report-enabled") }}</label>
+          </div>
+          <div class="field">
+            <label for="time">{{ t.get("report-time") }}</label>
+            <input id="time" name="time" type="time" value="{{ form.time }}" required>
+            <span class="help">{{ t.get1("report-time-hint", "zone", zone.as_str()) }}</span>
+          </div>
+        </div>
+        <fieldset class="field opts">
+          <legend class="label">{{ t.get("report-content") }}</legend>
+          <label class="check"><input type="checkbox" name="report_new" value="on"{% if form.new %} checked{% endif %}> {{ t.get("report-part-new") }}</label>
+          <label class="check"><input type="checkbox" name="report_open" value="on"{% if form.open %} checked{% endif %}> {{ t.get("report-part-open") }}</label>
+          <label class="check"><input type="checkbox" name="report_sources" value="on"{% if form.sources %} checked{% endif %}> {{ t.get("report-part-sources") }}</label>
+          <label class="check"><input type="checkbox" name="report_due" value="on"{% if form.due %} checked{% endif %}> {{ t.get("report-part-due") }}</label>
+          <label class="check"><input type="checkbox" name="report_skip_empty" value="on"{% if form.skip_empty %} checked{% endif %}> {{ t.get("report-skip-empty") }}</label>
+        </fieldset>
+        <div class="small stack">
+          {% if let Some(next) = next %}<p>{{ t.get1("report-next", "time", "") }}{{ next|safe }}</p>{% endif %}
+          {% if let Some(last) = last %}<p class="muted">{{ t.get1("report-last", "time", "") }}{{ last|safe }}</p>{% endif %}
+        </div>
+      </div>
+      <div class="cfoot"><button class="btn primary" type="submit">{{ t.get("save") }}</button></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <header><h2>{{ t.get("report-preview") }}</h2></header>
+    <div class="cbody">
+      <p class="muted small">{{ t.get("report-preview-hint") }}</p>
+      <div class="mailprev">
+        <div class="mh"><b>{{ preview.subject }}</b><br>{{ preview.to }}</div>
+        <pre class="mb mailtext">{{ preview.body }}</pre>
+      </div>
+      {% if preview.skipped %}<p class="muted small">{{ t.get("report-preview-empty") }}</p>{% endif %}
+    </div>
+    <form method="post" action="/settings/report/send" class="cfoot inline-form">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-mail"/></svg>{{ t.get("report-send-now") }}</button>
+      <span class="muted small">{{ t.get("report-send-hint") }}</span>
+    </form>
+  </section>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ t.get("login-title") }} – opensecmon{% endblock %}
+{% block body %}
+<main class="auth">
+  <div class="auth-card">
+    <p class="auth-brand"><svg class="ico mark" aria-hidden="true" focusable="false"><use href="#i-mark"/></svg><span>opensecmon</span></p>
+    <section class="card">
+      <div class="cbody">
+        <h1>{{ t.get("login-title") }}</h1>
+        <p class="muted">{{ t.get("login-tagline") }}</p>
+        {% if let Some(message) = notice %}
+        <p class="notice info" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ message }}</span></p>
+        {% endif %}
+        {% if let Some(message) = error %}
+        <p class="notice bad" role="alert"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ message }}</span></p>
+        {% endif %}
+        <form method="post" action="/login">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="field">
+            <label for="username">{{ t.get("username") }}</label>
+            <input id="username" name="username" type="text" autocomplete="username" required autofocus maxlength="64" autocapitalize="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="password">{{ t.get("password") }}</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024">
+          </div>
+          <button class="btn primary wide" type="submit">{{ t.get("login-submit") }}</button>
+        </form>
+      </div>
+    </section>
+    <p class="auth-meta">{{ t.get("login-free-software") }} · <a href="{{ crate::web::SOURCE_URL }}">{{ t.get("source-code") }}</a></p>
+  </div>
+</main>
+{% endblock %}

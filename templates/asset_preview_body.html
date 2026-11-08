@@ -1,0 +1,13 @@
+{#- What the matching would find for the asset in the form (variable `preview`). Titles come from the sources
+    and are escaped. -#}
+<div class="notice {{ preview.class }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{% if preview.items.is_empty() %}check-circle{% else %}alert{% endif %}"/></svg><span>{{ preview.text }}</span></div>
+{%- if !preview.items.is_empty() %}
+<ul class="hits">
+  {%- for i in preview.items %}
+  <li><span class="prio {{ i.band }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ i.band }}"/></svg><span>{{ i.prio }}</span></span> <a class="mono small" href="{{ i.href }}">{{ i.vuln }}</a> <span class="tag {{ i.confidence_class }}">{{ i.confidence }}</span> <span class="small t">{{ i.title }}</span></li>
+  {%- endfor %}
+</ul>
+{%- if !preview.more.is_empty() %}
+<p class="small muted">{{ preview.more }}</p>
+{%- endif %}
+{%- endif %}

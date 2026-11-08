@@ -1,0 +1,161 @@
+{#- Add or change an asset. Works without JavaScript: all fields are shown and "Preview" renders the page again
+    with the matches. `static/assets.js` shows only the fields of the chosen kind, offers suggestions while
+    typing (`/assets/suggest`) and refreshes the preview (`/assets/preview`). -#}
+{% extends "app.html" %}
+{% block title %}{{ title }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <a class="btn ghost sm" href="/assets"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("asset-back") }}</a>
+    <h1>{{ title }}</h1>
+    {%- if let Some(m) = matched %}
+    <p class="small muted">{{ t.get("asset-matched") }} {{ m|safe }}</p>
+    {%- endif %}
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+{%- if let Some(note) = origin_note %}
+<p class="notice info"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ note }}</span></p>
+{%- endif %}
+{%- if let Some(note) = no_source %}
+<p class="notice info"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ note }}</span></p>
+{%- endif %}
+<section class="card">
+  <div class="cbody">
+    <form method="post" action="{{ action }}" id="assetForm" data-asset-form{% if let Some(id) = id %} data-id="{{ id }}"{% endif %}>
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      {%- if let Some(id) = id %}
+      <input type="hidden" name="id" value="{{ id }}">
+      {%- endif %}
+      {%- if let Some(onm) = f.onm %}
+      <input type="hidden" name="onm" value="{{ onm }}">
+      {%- endif %}
+      <fieldset class="field">
+        <legend>{{ t.get("asset-kind") }}</legend>
+        <div class="btngroup">
+          <label class="check"><input type="radio" name="kind" value="package"{% if f.kind == "package" %} checked{% endif %}> {{ t.get("asset-kind-package") }}</label>
+          <label class="check"><input type="radio" name="kind" value="software"{% if f.kind == "software" %} checked{% endif %}> {{ t.get("asset-kind-software") }}</label>
+          <label class="check"><input type="radio" name="kind" value="hardware"{% if f.kind == "hardware" %} checked{% endif %}> {{ t.get("asset-kind-hardware") }}</label>
+        </div>
+        <span class="help">{{ t.get("asset-kind-package-help") }}</span>
+      </fieldset>
+
+      <fieldset class="fields" data-for="package">
+        <legend>{{ t.get("asset-fields-package") }}</legend>
+        <div class="field-row">
+          <div class="field">
+            <label for="aDistro">{{ t.get("asset-distro") }}</label>
+            <select id="aDistro" name="distro">
+              <option value="ubuntu"{% if f.distro == "ubuntu" %} selected{% endif %}>Ubuntu</option>
+              <option value="debian"{% if f.distro == "debian" %} selected{% endif %}>Debian</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="aRelease">{{ t.get("asset-release") }}</label>
+            <input id="aRelease" name="release" type="text" value="{{ f.release }}" maxlength="10" list="releases" placeholder="24.04" autocomplete="off" spellcheck="false">
+            <datalist id="releases">
+              {%- for r in releases %}
+              <option value="{{ r }}">
+              {%- endfor %}
+            </datalist>
+            <span class="help">{{ t.get("asset-release-help") }}</span>
+          </div>
+        </div>
+        {%- if let Some(href) = pro_from %}
+        {%- if f.pro.is_some() %}<input type="hidden" name="pro" value="1">{% endif %}
+        <p class="help">{{ t.get("asset-pro-from-host") }} <a href="{{ href }}">{{ t.get("asset-pro-from-host-link") }}</a></p>
+        {%- else %}
+        <label class="check"><input type="checkbox" name="pro" value="1"{% if f.pro.is_some() %} checked{% endif %}> {{ t.get("asset-pro") }}</label>
+        <span class="help">{{ t.get("asset-pro-help") }}</span>
+        {%- endif %}
+        <div class="field combo">
+          <label for="aPackage">{{ t.get("asset-package") }}</label>
+          <input id="aPackage" name="package" type="text" value="{{ f.package }}" maxlength="200" autocomplete="off" spellcheck="false" autocapitalize="off" data-suggest="package" aria-autocomplete="list" aria-controls="sugPackage" aria-expanded="false">
+          <ul class="suggest" id="sugPackage" role="listbox" hidden></ul>
+          <span class="help">{{ t.get("asset-package-help") }}</span>
+        </div>
+      </fieldset>
+
+      <fieldset class="fields" data-for="software hardware">
+        <legend>{{ t.get("asset-fields-product") }}</legend>
+        <div class="field-row">
+          <div class="field combo">
+            <label for="aVendor">{{ t.get("asset-vendor") }}</label>
+            <input id="aVendor" name="vendor_name" type="text" value="{{ f.vendor_name }}" maxlength="200" autocomplete="off" spellcheck="false" data-suggest="vendor" aria-autocomplete="list" aria-controls="sugVendor" aria-expanded="false">
+            <ul class="suggest" id="sugVendor" role="listbox" hidden></ul>
+            <span class="help">{{ t.get("asset-vendor-help") }}</span>
+          </div>
+          <div class="field combo">
+            <label for="aProduct">{{ t.get("asset-product") }}</label>
+            <input id="aProduct" name="product_name" type="text" value="{{ f.product_name }}" maxlength="200" autocomplete="off" spellcheck="false" data-suggest="product" aria-autocomplete="list" aria-controls="sugProduct" aria-expanded="false">
+            <ul class="suggest" id="sugProduct" role="listbox" hidden></ul>
+          </div>
+        </div>
+        <div class="field">
+          <label for="aCpe">{{ t.get("asset-cpe") }}</label>
+          <input id="aCpe" name="cpe" type="text" class="mono" value="{{ f.cpe }}" maxlength="300" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="cpe:2.3:a:traefik:traefik:3.7.1:*:*:*:*:*:*:*">
+          <span class="help">{{ t.get("asset-cpe-help") }}</span>
+        </div>
+      </fieldset>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="aVersion">{{ t.get("asset-version") }}</label>
+          <input id="aVersion" name="version" type="text" class="mono" value="{{ f.version }}" maxlength="100" autocomplete="off" spellcheck="false" autocapitalize="off">
+          <span class="help">{{ t.get("asset-version-help") }}</span>
+        </div>
+        <div class="field">
+          <label for="aHost">{{ t.get("asset-host") }}</label>
+          <input id="aHost" name="host" type="text" value="{{ f.host }}" maxlength="100" list="hosts" autocomplete="off" spellcheck="false">
+          <datalist id="hosts">
+            {%- for h in hosts %}
+            <option value="{{ h }}">
+            {%- endfor %}
+          </datalist>
+          <span class="help">{{ t.get("asset-host-help") }}</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="aMinPrio">{{ t.get("asset-min-prio") }}</label>
+        <input class="num-sm" id="aMinPrio" name="min_prio" type="text" inputmode="numeric" maxlength="3" value="{{ f.min_prio }}" placeholder="0">
+        <span class="help">{{ t.get("asset-min-prio-help") }}</span>
+      </div>
+      <div class="field">
+        <label for="aNote">{{ t.get("asset-note") }}</label>
+        <textarea id="aNote" name="note" rows="2" maxlength="1000">{{ f.note }}</textarea>
+      </div>
+
+      <section class="preview" id="aPrev" aria-live="polite" aria-labelledby="aPrevTitle">
+        <h2 id="aPrevTitle" class="small">{{ t.get("asset-preview-title") }}</h2>
+        {%- if let Some(preview) = preview %}
+        {% include "asset_preview_body.html" %}
+        {%- else %}
+        <div class="notice info"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ t.get("asset-preview-hint") }}</span></div>
+        {%- endif %}
+      </section>
+
+      <div class="btngroup">
+        <button class="btn primary" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-check"/></svg>{{ t.get("asset-save") }}</button>
+        <button class="btn" type="submit" name="action" value="preview" data-preview-button><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-eye"/></svg>{{ t.get("asset-preview") }}</button>
+        <a class="btn ghost" href="/assets">{{ t.get("asset-cancel") }}</a>
+      </div>
+    </form>
+  </div>
+</section>
+{%- if let Some(id) = id %}
+<section class="card">
+  <div class="cbody">
+    <p class="small muted">{{ t.get("asset-delete-help") }}</p>
+    <form method="post" action="/assets/{{ id }}/delete">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn sm ghost danger" type="submit"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-trash"/></svg>{{ t.get("asset-delete") }}</button>
+    </form>
+  </div>
+</section>
+{%- endif %}
+</div>
+</div>
+{% endblock %}

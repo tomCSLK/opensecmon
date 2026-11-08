@@ -1,0 +1,40 @@
+[Unit]
+Description=opensecmon database backup
+Documentation=https://github.com/tomCSLK/opensecmon
+
+[Service]
+Type=oneshot
+User=opensecmon
+Group=opensecmon
+ExecStart=/usr/sbin/opensecmon-backup
+UMask=0077
+
+# Reading a WAL database needs write access to its -wal/-shm files, hence /var/lib/opensecmon.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/opensecmon /var/backups/opensecmon
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+# No network (RestrictAddressFamilies instead of PrivateNetwork, which containers may refuse).
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+# Blocking setuid lets systemd apply the filters before switching to the user; otherwise it needs to keep CAP_SYS_ADMIN,
+# which containers (LXC, rootless Podman) refuse ("Failed to keep CAP_SYS_ADMIN").
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+AmbientCapabilities=

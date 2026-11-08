@@ -1,0 +1,56 @@
+# Advisories (CSAF documents of BSI CERT-Bund and vendors): list and detail.
+
+advisories-title = Advisories
+advisories-count = { $shown } of { $all } advisories
+advisories-search-placeholder = Full text: id, title, product or CVE id
+advisories-filter-source = Source
+advisories-filter-source-any = any
+advisories-filter-vendor-help = Vendor from the CSAF product tree; case and spaces do not matter (e.g. “avm”, “opensource”).
+advisories-source-vendor = Vendor CSAF
+advisories-empty-db-title = No advisories loaded yet
+advisories-empty-db-text = The list fills with the first fetch of BSI CERT-Bund (about 15,000 documents, a few minutes the first time) and of the vendor CSAF.
+advisories-empty-title = No matching advisories
+advisories-empty-text = Loosen the filters or choose a longer period.
+advisories-detail-empty = Choose a row to see its details.
+advisories-col-severity = Severity
+advisories-col-id = Id
+advisories-col-title = Title
+advisories-col-publisher = Publisher
+advisories-col-cves = CVEs
+advisories-col-updated = Updated
+
+advisory-section-summary = Summary
+advisory-section-cves = CVEs
+advisory-section-products = Products
+advisory-section-notes = Notes of the publisher
+advisory-section-sources = Sources
+advisory-section-refs = More links
+advisory-publisher = Publisher
+advisory-published = Published
+advisory-updated = Updated
+advisory-version = Version
+advisory-status = Status
+advisory-cvss = highest CVSS score
+advisory-tlp = TLP:
+advisory-lang = Language
+advisory-hash-checked = checksum verified
+advisory-hash-unchecked = loaded without checksum (the provider offers none)
+advisory-tracking-id = Id in the CSAF document
+advisory-open-portal = Advisory at the publisher
+advisory-open-csaf = CSAF document
+advisory-products-help = From the CSAF product tree. A click shows every advisory of that vendor.
+advisory-products-more = { $shown } of { $all } products shown.
+advisory-version-range = Version range
+advisory-no-cves = The document names no CVE.
+advisory-no-products = The document names no products.
+advisory-cve-unknown = (not in the CVE list)
+advisory-status-affected = affected
+advisory-status-fixed = fixed
+advisory-status-not-affected = not affected
+advisory-status-investigating = under investigation
+advisory-status-recommended = recommended
+advisory-status-listed = named
+
+view-label = View
+view-cves = CVEs
+view-advisories = Advisories

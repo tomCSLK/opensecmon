@@ -1,0 +1,34 @@
+{#- A new computer: only its name; the page of the computer then shows the one-time code. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("computers-add") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <a class="btn ghost sm" href="/assets/computers"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("computers-title") }}</a>
+    <h1>{{ t.get("computers-add") }}</h1>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+<section class="card wiz">
+  <div class="cbody">
+    <p>{{ t.get("computers-add-intro") }}</p>
+    <form method="post" action="/assets/computers/new">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <div class="field">
+        <label for="cName">{{ t.get("hosts-name") }}</label>
+        <input id="cName" name="name" type="text" value="{{ name }}" maxlength="100" required autocomplete="off">
+        <span class="help">{{ t.get("hosts-name-help") }}</span>
+      </div>
+      <div class="wizfoot">
+        <a class="btn" href="/assets/computers">{{ t.get("asset-cancel") }}</a>
+        <button class="btn primary" type="submit">{{ t.get("computers-create") }}<svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-right"/></svg></button>
+      </div>
+    </form>
+  </div>
+</section>
+</div>
+</div>
+{% endblock %}

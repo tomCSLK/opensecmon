@@ -1,0 +1,123 @@
+{#- Import from opennetmon: address and token, the devices with the suggested product. Everything that comes
+    from opennetmon is escaped; the token is never shown. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("onm-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ t.get("assets-title") }}</h1>
+    <p>{{ t.get("assets-subtitle") }}</p>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+{%- if let Some(e) = onm_error %}
+<p class="notice bad" role="alert"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ t.get("onm-last-error") }} {{ e }}</span></p>
+{%- endif %}
+<section class="card">
+  <header><h2>{{ t.get("onm-connection") }}</h2>{% if let Some(l) = last %}<span class="small muted">{{ t.get("onm-last") }} {{ l|safe }}</span>{% endif %}</header>
+  <div class="cbody">
+    <p class="small muted">{{ t.get("onm-connection-text") }} <code>{{ path }}</code></p>
+    <form method="post" action="/assets/opennetmon/settings">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <div class="field-row">
+        <div class="field">
+          <label for="oUrl">{{ t.get("onm-url") }}</label>
+          <input id="oUrl" name="url" type="url" value="{{ url }}" maxlength="300" placeholder="https://opennetmon.example.org" autocomplete="off" spellcheck="false">
+          <span class="help">{{ t.get("onm-url-help") }}</span>
+        </div>
+        <div class="field">
+          <label for="oToken">{{ t.get("onm-token") }}</label>
+          <input id="oToken" name="token" type="password" maxlength="500" autocomplete="off"{% if has_token %} placeholder="{{ t.get("onm-token-kept") }}"{% endif %}>
+          <span class="help">{{ t.get("onm-token-help") }}</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="oCert">{{ t.get("onm-cert") }}</label>
+        <input id="oCert" name="cert" type="text" value="{{ cert }}" maxlength="300" autocomplete="off" spellcheck="false" placeholder="AB:CD:EF:…">
+        <span class="help">{{ t.get("onm-cert-help") }}</span>
+      </div>
+      <div class="inline-row">
+        <button class="btn primary" type="submit">{{ t.get("asset-save") }}</button>
+        {%- if !url.is_empty() %}
+        <button class="btn danger" type="submit" name="action" value="remove" formnovalidate>{{ t.get("onm-remove") }}</button>
+        {%- endif %}
+      </div>
+    </form>
+  </div>
+</section>
+<div class="card">
+  <header><h2>{{ t.get("onm-devices") }}</h2><span class="small muted">{{ counts }}</span>
+    {%- if has_token && !url.is_empty() %}
+    <form class="inline-form" method="post" action="/assets/opennetmon/run">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn sm ghost" type="submit" data-busy><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>{{ t.get("hosts-run") }}</button>
+    </form>
+    {%- endif %}
+  </header>
+  {%- if devices.is_empty() %}
+  <div class="empty">
+    <div>
+      <svg class="ico xl neutral" aria-hidden="true" focusable="false"><use href="#i-network"/></svg>
+      <h2>{{ t.get("onm-none-title") }}</h2>
+      <p>{{ t.get("onm-none-text") }}</p>
+    </div>
+  </div>
+  {%- else %}
+  <div class="tblwrap">
+    <table class="tbl onm">
+      <thead><tr><th>{{ t.get("onm-col-device") }}</th><th class="hide-sm">sysDescr</th><th>{{ t.get("onm-col-suggestion") }}</th><th class="hide-sm">{{ t.get("onm-col-rule") }}</th><th></th></tr></thead>
+      <tbody>
+      {%- for d in devices %}
+        <tr{% if d.state == "skipped" %} class="dim"{% endif %}>
+          <td><b>{{ d.name }}</b>{% if !d.address.is_empty() %}<div class="mono small muted">{{ d.address }}</div>{% endif %}{% if d.gone %}<div class="small"><span class="state off">{{ t.get("onm-gone") }}</span></div>{% endif %}</td>
+          <td class="mono small muted hide-sm cut" title="{{ d.sys_descr }}">{{ d.sys_descr }}</td>
+          <td>
+            {%- if d.via_ssh && !d.can_take %}
+            <span class="muted">{{ t.get("onm-via-ssh") }}</span>
+            {%- else %}
+            {% if d.suggestion.is_empty() %}<span class="muted">–</span>{% else %}{{ d.suggestion }}{% endif %}
+            <div class="small"><span class="state {{ d.sure }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ d.sure_icon }}"/></svg>{{ d.sure_text }}</span></div>
+            {%- endif %}
+          </td>
+          <td class="small muted hide-sm">{{ d.rule }}</td>
+          <td class="nowrap">
+            <div class="row-actions">
+            {%- if d.state == "taken" %}
+            {%- if let Some(a) = d.asset_id %}<a class="state ok" href="/assets/{{ a }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-check"/></svg>{{ t.get("onm-taken") }}</a>{% endif %}
+            {%- else if d.state == "skipped" %}
+            <span class="state off">{{ t.get("onm-skipped") }}</span>
+            <form class="inline-form" method="post" action="/assets/opennetmon/{{ d.id }}/state">
+              <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+              <input type="hidden" name="state" value="new">
+              <button class="btn sm ghost" type="submit">{{ t.get("onm-unskip") }}</button>
+            </form>
+            {%- else %}
+            {%- if d.can_take %}
+            <form class="inline-form" method="post" action="/assets/opennetmon/{{ d.id }}/take">
+              <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+              <button class="btn sm" type="submit">{{ t.get("onm-take") }}</button>
+            </form>
+            {%- endif %}
+            <a class="btn sm ghost" href="/assets/new?onm={{ d.id }}">{{ t.get("onm-change") }}</a>
+            <form class="inline-form" method="post" action="/assets/opennetmon/{{ d.id }}/state">
+              <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+              <input type="hidden" name="state" value="skipped">
+              <button class="btn sm ghost" type="submit">{{ t.get("onm-skip") }}</button>
+            </form>
+            {%- endif %}
+            </div>
+          </td>
+        </tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+  <div class="cbody small muted">{{ t.get("onm-footer") }}</div>
+</div>
+</div>
+</div>
+{% endblock %}

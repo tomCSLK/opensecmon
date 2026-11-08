@@ -1,0 +1,52 @@
+# /etc/opensecmon/config.toml - production configuration (all keys shown).
+# Changes need `systemctl restart opensecmon`; mail settings are edited in the web interface instead.
+
+# Where the web interface listens: every IPv4 address of the server, port 8444, HTTPS only (open it with
+# https://<server>:8444; plain HTTP on that port gets a redirect). Behind a reverse proxy (Traefik, Caddy, nginx)
+# instead: listen = "127.0.0.1:8090", remove the two tls_ lines and set client_ip_header (below).
+listen = "0.0.0.0:8444"
+
+# Certificate for HTTPS. Created on installation by `opensecmon tls generate` (self-signed, valid for ten years
+# for the host name and the IP addresses of the server). Your own certificate: replace the files (PEM, the key
+# with mode 0600 and owned by opensecmon), see docs/operations.md.
+tls_cert_file = "/etc/opensecmon/tls-cert.pem"
+tls_key_file = "/etc/opensecmon/tls-key.pem"
+
+# Host names the interface is opened under (as the browser sends them in the Host header, with the port if it is
+# not 80/443). Requests for other names are refused, which protects against DNS rebinding. Empty list: any name.
+# allowed_hosts = ["192.168.0.10:8444", "secmon.lan:8444"]
+allowed_hosts = []
+
+database_path = "/var/lib/opensecmon/opensecmon.db"   # downloads of the sources go to downloads/ next to it
+log_filter = "info"                         # journalctl -u opensecmon; e.g. "info,opensecmon=debug"
+
+# 64 hex characters, mode 0600, owned by the service user. Created by the .deb package.
+# BACK IT UP SEPARATELY from the database: without it the stored SMTP password is unreadable.
+secret_key_file = "/etc/opensecmon/secret.key"
+
+cookie_secure = true                        # keep true (HTTPS); false only for plain-HTTP testing
+session_ttl_hours = 168                     # absolute session lifetime
+session_idle_minutes = 30                   # sign out after this time without activity; 0 = off
+
+# Only behind a reverse proxy: where the real client address is, for the login throttling: "x-forwarded-for" (the
+# last entry, appended by the proxy) or "x-real-ip". Without it every sign-in seems to come from the proxy. Never set
+# it when browsers connect directly (as with the built-in HTTPS above): a client could write the header itself.
+# client_ip_header = "x-forwarded-for"
+
+retention_audit_days = 730                  # audit log: changes, sign-ins
+
+# Networks computers may use the agent API from (docs/agent-api.md), as addresses or CIDR ranges. Unset: private
+# and local addresses (10/8, 172.16/12, 192.168/16, 127/8, fc00::/7, fe80::/10, ::1). [] switches the API off.
+# Behind a reverse proxy the address comes from client_ip_header.
+# agent_networks = ["192.168.1.0/24"]
+
+# Folder with the opensecagent packages offered for download and as updates (filled by the package of opensecmon).
+# agent_packages_dir = "/usr/share/opensecmon/agent"
+
+# Time zone of the daily report; unset = the zone of the system (`timedatectl`; servers often run in UTC).
+# time_zone = "Europe/Berlin"
+
+# Fetch the sources (cvelistV5, NVD, CISA KEV, EPSS …) on their schedule. The first run downloads the whole CVE
+# list (about 650 MB) and the NVD feeds; the database then holds roughly 1 GB. false: no scheduled fetching,
+# "fetch now" on the sources page still works.
+fetch_sources = true

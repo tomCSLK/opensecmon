@@ -1,0 +1,152 @@
+{#- The inbox (docs/entwurf/eingang.html): views and filters on the left, the matches by vulnerability in the
+    middle, the detail with the triage on the right. Views, filters and the selection are links, the actions
+    forms; static/inbox.js adds keys and swaps the detail without a reload. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("nav-inbox") }} – opensecmon{% endblock %}
+{% block main_class %}full{% endblock %}
+{% block content %}
+<div class="inbox" id="inbox"{% if sheet_open %} data-sheet-open{% endif %}>
+  <aside class="pane filters" id="filters" aria-label="{{ t.get("inbox-filters") }}">
+    <div class="fhead show-sm"><h2>{{ t.get("inbox-filters") }}</h2><button class="iconbtn" type="button" data-close-filters aria-label="{{ t.get("inbox-close-filters") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></button></div>
+    <nav class="fgroup" aria-label="{{ t.get("inbox-views") }}">
+      <h3>{{ t.get("inbox-views") }}</h3>
+      {%- for v in views %}
+      <a class="frow view" href="{{ v.href }}" aria-pressed="{{ v.current }}"{% if v.current %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ v.icon }}"/></svg><span>{{ v.label }}</span><span class="n">{{ v.count }}</span></a>
+      {%- endfor %}
+    </nav>
+    {%- for g in groups %}
+    <div class="fgroup">
+      <h3>{{ g.title }}{% if let Some(reset) = g.reset %}<a href="{{ reset }}">{{ t.get("inbox-reset") }}</a>{% endif %}</h3>
+      {%- for r in g.rows %}
+      <a class="frow" href="{{ r.href }}" aria-pressed="{{ r.on }}"><span class="box" aria-hidden="true"></span>{% if !r.band.is_empty() %}<span class="sev {{ r.band }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ r.band }}"/></svg></span>{% endif %}<span class="lbl">{{ r.label }}</span><span class="n">{{ r.count }}</span></a>
+      {%- endfor %}
+    </div>
+    {%- endfor %}
+  </aside>
+
+  <section class="list" aria-label="{{ t.get("inbox-list") }}">
+    <form id="bulk" method="post" action="/inbox">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <input type="hidden" name="back" value="{{ back }}">
+    </form>
+    <div class="listbar" id="listbar">
+      <input type="checkbox" id="selAll" aria-label="{{ t.get("inbox-select-all") }}" hidden>
+      <span class="nosel"><span class="title">{{ title }}</span> <span class="muted small" role="status">{{ count }}</span></span>
+      <span class="bulk">
+        <b id="bulkN" data-text="{{ t.get("inbox-selected") }}"></b>
+        <button class="btn sm primary" type="submit" form="bulk" name="action" value="done">{{ t.get("triage-done") }}</button>
+        <details class="act">
+          <summary class="btn sm">{{ t.get("triage-later") }}</summary>
+          <div class="menu-pop">
+            <button type="submit" form="bulk" name="action" value="later:1">{{ t.get("triage-later-1") }}</button>
+            <button type="submit" form="bulk" name="action" value="later:7">{{ t.get("triage-later-7") }}</button>
+            <button type="submit" form="bulk" name="action" value="later:30">{{ t.get("triage-later-30") }}</button>
+          </div>
+        </details>
+        <details class="act">
+          <summary class="btn sm">{{ t.get("triage-ignore") }}</summary>
+          <div class="menu-pop ignore">
+            <div class="field">
+              <label for="bulkReason">{{ t.get("triage-reason") }}</label>
+              <select id="bulkReason" name="reason" form="bulk">
+                {%- for (key, label) in reasons %}
+                <option value="{{ key }}">{{ label }}</option>
+                {%- endfor %}
+              </select>
+            </div>
+            <button class="btn primary" type="submit" form="bulk" name="action" value="ignore">{{ t.get("triage-ignore-ok") }}</button>
+          </div>
+        </details>
+        <button class="btn sm ghost" type="button" id="bulkClear">{{ t.get("inbox-bulk-clear") }}</button>
+      </span>
+      <span class="sp"></span>
+      <button class="btn sm show-sm" type="button" id="openFilters"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-filter"/></svg>{{ t.get("inbox-filters") }}</button>
+      <form class="nosel sortform" method="get" action="/">
+        {%- for (name, value) in hidden %}
+        <input type="hidden" name="{{ name }}" value="{{ value }}">
+        {%- endfor %}
+        <label class="sr-only" for="sort">{{ t.get("inbox-sort") }}</label>
+        <select id="sort" name="sort" data-autosubmit>
+          {%- for (value, label, current) in sorts %}
+          <option value="{{ value }}"{% if *current %} selected{% endif %}>{{ label }}</option>
+          {%- endfor %}
+        </select>
+        <button class="btn sm" type="submit" data-noscript>{{ t.get("inbox-apply") }}</button>
+      </form>
+      <a class="btn sm ghost nosel" href="{{ export_href }}" download title="{{ t.get("export-download-title") }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>CSV</a>
+    </div>
+    {%- if !chips.is_empty() %}
+    <div class="chips">
+      {%- for c in chips %}
+      <span class="chip">{{ c.label }}<a href="{{ c.href }}" aria-label="{{ t.get("inbox-remove") }}: {{ c.label }}" title="{{ t.get("inbox-remove") }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></a></span>
+      {%- endfor %}
+      <a class="chip add" href="{{ clear_href }}">{{ t.get("inbox-reset-all") }}</a>
+    </div>
+    {%- endif %}
+    {%- if flash.is_some() || error.is_some() %}
+    <div class="listmsg">{% include "flash.html" %}</div>
+    {%- endif %}
+    <ul class="rows" id="rows" aria-label="{{ t.get("inbox-list") }}">
+      {%- for r in rows %}
+      <li class="row{% if r.unread %} unread{% endif %} state-{{ r.state }}" data-href="{{ r.href }}" aria-selected="{{ r.selected }}">
+        <input type="checkbox" form="bulk" name="vuln" value="{{ r.vuln }}" aria-label="{{ t.get("inbox-select") }}: {{ r.label }}">
+        <span class="prio {{ r.band }}" title="{{ r.prio_title }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ r.band }}"/></svg><span>{{ r.prio }}</span></span>
+        <div class="l1"><a class="id" href="{{ r.href }}" data-detail>{{ r.label }}</a><span class="t" title="{{ r.title }}">{{ r.title }}</span></div>
+        <div class="meta">
+          {%- if r.kev %}<span class="kev"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KEV</span>{% endif %}
+          {%- if r.unread %}<span class="newdot" title="{{ t.get("inbox-new") }}"></span><span class="sr-only">{{ t.get("inbox-new") }}</span>{% endif %}
+          {%- if !r.state_text.is_empty() %}<span class="rowstate"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ r.state_icon }}"/></svg>{{ r.state_text }}</span>{% endif %}
+          <span>{{ r.age }}</span>
+        </div>
+        <div class="l2"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ r.icon }}"/></svg><span class="asset">{{ r.asset }}</span>{% if !r.more_assets.is_empty() %}<span class="tag">{{ r.more_assets }}</span>{% endif %}</div>
+      </li>
+      {%- endfor %}
+      {%- if rows.is_empty() %}
+      <li class="empty">
+        <div>
+          {%- if no_assets %}
+          <svg class="ico xl" aria-hidden="true" focusable="false"><use href="#i-server"/></svg>
+          <h2>{{ t.get("inbox-setup-title") }}</h2>
+          <p>{{ t.get("inbox-setup-text") }}</p>
+          <p class="btngroup center"><a class="btn sm primary" href="/assets/new">{{ t.get("inbox-setup-assets") }}</a><a class="btn sm" href="/assets/watchlist">{{ t.get("inbox-setup-watch") }}</a></p>
+          {%- else if all_done %}
+          <svg class="ico xl" aria-hidden="true" focusable="false"><use href="#i-shield-check"/></svg>
+          <h2>{{ t.get("inbox-done-title") }}</h2>
+          <p>{{ t.get("inbox-done-text") }}</p>
+          {%- if let Some(c) = checked %}
+          <p class="small muted">{{ t.get("inbox-checked") }} {{ c|safe }}</p>
+          {%- endif %}
+          <p><a class="btn sm" href="/situation">{{ t.get("inbox-to-situation") }}</a></p>
+          {%- else %}
+          <svg class="ico xl neutral" aria-hidden="true" focusable="false"><use href="#i-filter"/></svg>
+          <h2>{{ t.get("inbox-nothing-title") }}</h2>
+          <p>{{ t.get("inbox-nothing-text") }}</p>
+          <p><a class="btn sm" href="{{ clear_href }}">{{ t.get("inbox-reset-all") }}</a></p>
+          {%- endif %}
+        </div>
+      </li>
+      {%- endif %}
+    </ul>
+    {%- if let Some((text, href)) = muted %}
+    <div class="listfoot"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-eye-off"/></svg> <a href="{{ href }}">{{ text }}</a></div>
+    {%- endif %}
+    <div class="listfoot hide-sm">{% if !more.is_empty() %}{{ more }} · {% endif %}{{ t.get("inbox-keys") }}</div>
+  </section>
+
+  <section class="pane detail" id="detail" aria-label="{{ t.get("inbox-detail") }}">
+    {%- if let Some(kind) = detail %}
+    {%- match kind %}
+    {%- when DetailKind::Cve(d) %}
+    {% include "cve_detail.html" %}
+    {%- when DetailKind::Advisory(d) %}
+    {% include "advisory_detail.html" %}
+    {%- when DetailKind::Simple(d) %}
+    {% include "inbox_simple.html" %}
+    {%- endmatch %}
+    {%- else %}
+    <div class="empty"><div><p class="muted">{{ t.get("inbox-detail-empty") }}</p></div></div>
+    {%- endif %}
+  </section>
+</div>
+<div class="scrim" data-sheet-close></div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{#- The frame of every page after sign-in (docs/entwurf/: top bar, user menu, bottom bar on narrow screens). -#}
+{% extends "base.html" %}
+{% block body %}
+<a class="skip" href="#main">{{ t.get("nav-skip") }}</a>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="{{ t.get("nav-home") }}"><svg class="ico mark" aria-hidden="true" focusable="false"><use href="#i-mark"/></svg><span class="name">opensecmon</span></a>
+  <nav class="nav" aria-label="{{ t.get("nav-main") }}">
+    {%- for item in layout.nav(*t) %}
+    <a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ item.icon }}"/></svg>{{ item.label }}{% if item.count > 0 %}<span class="count" title="{{ t.get("nav-open-count") }}">{{ item.count }}</span>{% endif %}</a>
+    {%- endfor %}
+  </nav>
+  <form class="search" role="search" action="/cves">
+    <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-search"/></svg>
+    <label class="sr-only" for="gsearch">{{ t.get("search") }}</label>
+    <input id="gsearch" name="q" type="search" placeholder="{{ t.get("search-placeholder") }}" autocomplete="off" maxlength="200">
+    <kbd>/</kbd>
+  </form>
+  {%- if let Some(chip) = layout.status_chip(*t) %}
+  <a class="status-chip" href="/sources" title="{{ t.get("status-title") }}"><span class="dot {{ chip.class }}"></span><span class="txt">{% if let Some(checked) = chip.checked %}{{ t.get("status-checked") }} {{ checked|safe }} · {% endif %}{{ chip.text }}</span><span class="sr-only">{{ t.get("nav-sources") }}: {{ chip.text }}</span></a>
+  {%- endif %}
+  <button class="iconbtn themebtn" type="button" data-theme-toggle aria-label="{{ t.get("nav-theme-toggle") }}" title="{{ t.get("nav-theme-toggle") }}">
+    <svg class="ico when-light" aria-hidden="true" focusable="false"><use href="#i-moon"/></svg>
+    <svg class="ico when-dark" aria-hidden="true" focusable="false"><use href="#i-sun"/></svg>
+  </button>
+  <details class="menu">
+    <summary class="iconbtn" aria-label="{{ t.get("nav-user-menu") }}" title="{{ t.get("nav-user-menu") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-user"/></svg></summary>
+    <div class="menu-pop">
+      <div class="who">{{ t.get("nav-signed-in-as") }} <b>{{ layout.username }}</b></div>
+      <a href="/settings"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-settings"/></svg>{{ t.get("nav-settings") }}</a>
+      <a href="/settings/audit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-history"/></svg>{{ t.get("nav-audit") }}</a>
+      <hr>
+      <form method="post" action="/logout"{% if let Some(left) = layout.session_left %} data-session-left="{{ left }}"{% endif %}>
+        <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+        <button type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-logout"/></svg>{{ t.get("nav-logout") }}</button>
+      </form>
+      <hr>
+      <div class="who small">opensecmon {{ crate::web::VERSION }} · <a class="inline" href="{{ crate::web::SOURCE_URL }}">{{ t.get("source-code") }}</a> (AGPL-3.0)</div>
+    </div>
+  </details>
+</header>
+<main id="main" class="{% block main_class %}page{% endblock %}">
+{% block content %}{% endblock %}
+</main>
+<nav class="bottomnav" aria-label="{{ t.get("nav-main") }}">
+  {%- for item in layout.nav(*t) %}
+  <a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}><svg class="ico lg" aria-hidden="true" focusable="false"><use href="#i-{{ item.icon }}"/></svg><span>{{ item.short }}</span></a>
+  {%- endfor %}
+</nav>
+{% endblock %}

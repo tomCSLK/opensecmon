@@ -1,0 +1,36 @@
+{% extends "app.html" %}
+{% block title %}{{ t.get("nav-audit") }} – opensecmon{% endblock %}
+{% block content %}
+{% let section = "audit" %}
+<div class="pagehead"><div><h1>{{ t.get("nav-settings") }}</h1></div></div>
+<div class="split settings">
+{% include "settings_nav.html" %}
+<section class="card">
+  <header>
+    <h2>{{ t.get("nav-audit") }}</h2>
+    {% if !filtered.is_empty() %}<span class="small">{{ filtered }} · <a href="/settings/audit">{{ t.get("audit-show-all") }}</a></span>{% endif %}
+  </header>
+  <p class="cbody muted small">{{ t.get("audit-subtitle") }}</p>
+  {% if rows.is_empty() %}
+  <p class="cbody muted">{{ t.get("audit-empty") }}</p>
+  {% else %}
+  <div class="tblwrap">
+  <table class="tbl">
+    <thead><tr><th>{{ t.get("audit-when") }}</th><th>{{ t.get("audit-user") }}</th><th>{{ t.get("audit-action") }}</th><th>{{ t.get("audit-object") }}</th><th>{{ t.get("audit-detail") }}</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="nowrap mono small">{{ r.at|safe }}</td>
+        <td class="nowrap">{% if r.user.is_empty() %}–{% else %}<a href="/settings/audit?user={{ r.user|urlencode }}">{{ r.user }}</a>{% endif %}{% if !r.address.is_empty() %} <span class="muted small">{{ r.address }}</span>{% endif %}</td>
+        <td class="nowrap"><span class="badge {{ r.level }}">{{ r.action }}</span></td>
+        <td>{% if let Some(href) = r.href %}<a href="{{ href }}">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}{% if !r.kind.is_empty() %} <span class="muted small">{{ r.kind }}</span>{% endif %}</td>
+        <td class="muted">{{ r.detail }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

@@ -1,0 +1,154 @@
+{#- The page of a computer: its state, what its agent needs for the enrollment (address, certificate, one-time
+    code, commands), and managing it. Host name and program come from the computer and are escaped. -#}
+{% extends "app.html" %}
+{% block title %}{{ computer.name }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <a class="btn ghost sm" href="/assets/computers"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("computers-title") }}</a>
+    <h1>{{ computer.name }}</h1>
+    <p><span class="state {{ state }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ icon }}"/></svg>{{ state_text }}</span></p>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+{%- if let Some(e) = enrollment %}
+<section class="card" aria-labelledby="enrollTitle">
+  <header><h2 id="enrollTitle">{{ t.get("computers-enroll-title") }}</h2></header>
+  <div class="cbody stack-sm">
+    {%- if let Some(code) = e.agent_code %}
+    <h3>{{ t.get("computers-agent-title") }}</h3>
+    <p><b>1.</b> {{ t.get("computers-agent-step-download") }}</p>
+    <ul class="downloads">
+      {%- for d in downloads %}
+      <li><a href="{{ d.href }}" download><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>{{ d.label }}</a> <span class="small muted">{{ d.size }}</span></li>
+      {%- endfor %}
+    </ul>
+    <p><b>2.</b> {{ t.get("computers-agent-step-code") }}</p>
+    <div class="codebox" data-copy-box>{{ code }}</div>
+    <p class="small muted">{{ t.get("computers-agent-code-help") }} {{ e.expires|safe }}</p>
+    <details class="note">
+      <summary>{{ t.get("computers-agent-scripts") }}</summary>
+      <div class="stack-sm">
+    {%- endif %}
+    <p>{{ t.get("computers-enroll-intro") }}</p>
+    <dl class="kv">
+      <dt>{{ t.get("computers-code") }}</dt><dd><b class="mono">{{ e.code }}</b> <span class="small muted">{{ t.get("computers-code-valid") }} {{ e.expires|safe }}</span></dd>
+      <dt>{{ t.get("computers-url") }}</dt><dd class="mono">{{ e.base_url }}</dd>
+      {%- if let Some(fp) = fingerprint %}
+      <dt>{{ t.get("computers-fingerprint") }}</dt><dd><span class="fp">{{ fp }}</span><div class="small"><a href="/assets/computers/opensecmon.pem" download><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>{{ t.get("computers-cert-download") }}</a></div></dd>
+      {%- endif %}
+    </dl>
+    {%- if fingerprint.is_none() %}
+    <p class="small muted">{{ t.get("computers-cert-none") }}</p>
+    {%- endif %}
+    <h3 class="gap-top">{{ t.get("computers-script-title") }}</h3>
+    <p>{{ t.get("computers-script-intro") }} <a href="/assets/computers/opensecmon-agent.sh" download><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>{{ t.get("computers-script-download") }}</a></p>
+    <div class="codebox" data-copy-box>{{ e.script_command }}</div>
+    <p class="small muted">{{ t.get("computers-script-help") }}</p>
+    <h3 class="gap-top">{{ t.get("computers-windows-title") }}</h3>
+    <p>{{ t.get("computers-windows-intro") }} <a href="/assets/computers/opensecmon-agent.ps1" download><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>{{ t.get("computers-windows-download") }}</a></p>
+    <div class="codebox" data-copy-box>{{ e.windows_command }}</div>
+    <p class="small muted">{{ t.get("computers-windows-help") }}</p>
+    <details class="note">
+      <summary>{{ t.get("computers-try") }}</summary>
+      <div class="stack-sm">
+        <div class="codebox" data-copy-box>{{ e.enroll_command }}</div>
+        <p class="small muted">{{ t.get("computers-try-help") }}</p>
+        <p>{{ t.get("computers-status-cmd") }}</p>
+        <div class="codebox" data-copy-box>{{ e.status_command }}</div>
+      </div>
+    </details>
+    {%- if e.agent_code.is_some() %}
+      </div>
+    </details>
+    {%- endif %}
+  </div>
+</section>
+{%- endif %}
+<section class="card">
+  <header><h2>{{ t.get("computers-details") }}</h2></header>
+  <div class="cbody stack-sm">
+    <dl class="kv">
+      <dt>{{ t.get("computers-hostname") }}</dt><dd>{% if computer.hostname.is_empty() %}<span class="muted">–</span>{% else %}<span class="mono">{{ computer.hostname }}</span>{% endif %}</dd>
+      <dt>{{ t.get("computers-col-agent") }}</dt><dd>{% if agent.is_empty() %}<span class="muted">–</span>{% else %}{{ agent }}{% endif %}</dd>
+      <dt>{{ t.get("computers-enrolled") }}</dt><dd>{% if let Some(v) = enrolled %}{{ v|safe }}{% else %}<span class="muted">{{ t.get("computers-never") }}</span>{% endif %}</dd>
+      <dt>{{ t.get("computers-col-seen") }}</dt><dd>{% if let Some(v) = last_seen %}{{ v|safe }}{% else %}<span class="muted">{{ t.get("computers-never") }}</span>{% endif %}</dd>
+      <dt>{{ t.get("hosts-col-system") }}</dt><dd>{% if computer.os_name.is_empty() %}<span class="muted">–</span>{% else %}{{ computer.os_name }}{% endif %}{%- if let Some(k) = kernel %}<div class="small{% if !k.reboot %} muted{% endif %}">{% if k.reboot %}<span class="state warn"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg>{{ k.text }}</span>{% else %}{{ k.text }}{% endif %}</div>{% endif %}</dd>
+      <dt>{{ t.get("hosts-col-packages") }}</dt><dd>{% if computer.packages > 0 %}<a href="/assets?host={{ computer.name|urlencode }}">{{ computer.packages }}</a>{% else %}<span class="muted">–</span>{% endif %}{% if !unassigned.is_empty() %}<div class="small"><a href="/assets/unassigned">{{ unassigned }}</a></div>{% endif %}</dd>
+      <dt>{{ t.get("computers-last-report") }}</dt><dd>{% if let Some(v) = last_report %}{{ v|safe }}{% else %}<span class="muted">{{ t.get("computers-never") }}</span>{% endif %}</dd>
+    </dl>
+    {%- if let Some(err) = last_error %}
+    <p class="notice warn" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ t.get("computers-last-error") }} {{ err }}</span></p>
+    {%- endif %}
+    {%- if let Some(u) = update %}
+    <h3 class="gap-top">{{ t.get("computers-agent-update-title") }}</h3>
+    {%- if let Some(v) = u.requested %}
+    <p class="notice" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-clock"/></svg><span>{% if let Some(at) = u.sent_at %}{{ t.get1("computers-agent-update-sent", "version", v.as_str()) }} {{ at|safe }}{% else %}{{ t.get1("computers-agent-update-waiting", "version", v.as_str()) }}{% if let Some(at) = u.requested_at %} {{ t.get("computers-agent-update-since") }} {{ at|safe }}{% endif %}{% endif %}</span></p>
+    <form method="post" action="/assets/computers/{{ computer.id }}/update/cancel" class="action-row">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn" type="submit">{{ t.get("computers-agent-update-cancel") }}</button>
+    </form>
+    {%- else %}
+    {%- if let Some(err) = u.error %}
+    <p class="notice warn" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ t.get("computers-agent-update-failed") }} {{ err }}</span></p>
+    {%- endif %}
+    {%- if let Some(v) = u.available %}
+    <form method="post" action="/assets/computers/{{ computer.id }}/update" class="action-row">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn primary" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>{{ t.get1("computers-agent-update-button", "version", v.as_str()) }}</button>
+      <span class="help">{{ t.get("computers-agent-update-help") }}</span>
+    </form>
+    {%- else if !u.can_update %}
+    <p class="small muted">{{ t.get("computers-agent-update-own") }}</p>
+    {%- else %}
+    <p class="small muted">{{ t.get1("computers-agent-update-current", "version", u.running.as_str()) }}</p>
+    {%- endif %}
+    {%- endif %}
+    {%- else if enrollment.is_none() && computer.enrolled() && computer.windows() %}
+    <h3 class="gap-top">{{ t.get("computers-update-title") }}</h3>
+    <p>{{ t.get("computers-update-intro-windows") }} <a href="/assets/computers/opensecmon-agent.ps1" download><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>{{ t.get("computers-windows-download") }}</a></p>
+    <div class="codebox" data-copy-box>powershell -ExecutionPolicy Bypass -File .\opensecmon-agent.ps1 update</div>
+    <p class="small muted">{{ t.get("computers-update-help-windows") }}</p>
+    {%- else if enrollment.is_none() && computer.enrolled() %}
+    <h3 class="gap-top">{{ t.get("computers-update-title") }}</h3>
+    <p>{{ t.get("computers-update-intro") }} <a href="/assets/computers/opensecmon-agent.sh" download><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>{{ t.get("computers-script-download") }}</a></p>
+    <div class="codebox" data-copy-box>sudo install -m 755 opensecmon-agent.sh /usr/local/sbin/opensecmon-agent</div>
+    <p class="small muted">{{ t.get("computers-update-help") }}</p>
+    {%- endif %}
+  </div>
+</section>
+<section class="card">
+  <header><h2>{{ t.get("hosts-manage") }}</h2></header>
+  <div class="cbody stack-sm">
+    <form method="post" action="/assets/computers/{{ computer.id }}" class="inline-row">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <label class="sr-only" for="cName">{{ t.get("hosts-name") }}</label>
+      <input id="cName" name="name" type="text" value="{{ name }}" maxlength="100" required autocomplete="off">
+      <button class="btn" type="submit">{{ t.get("computers-rename") }}</button>
+    </form>
+    {%- include "pro_setting.html" %}
+    <form method="post" action="/assets/computers/{{ computer.id }}/code" class="action-row">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-key"/></svg>{{ t.get("computers-new-code") }}</button>
+      <span class="help">{{ t.get("computers-new-code-help") }}</span>
+    </form>
+    {%- if computer.enrolled() %}
+    <form method="post" action="/assets/computers/{{ computer.id }}/revoke" class="action-row">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-pause-circle"/></svg>{{ t.get("computers-revoke") }}</button>
+      <span class="help">{{ t.get("computers-revoke-help") }}</span>
+    </form>
+    {%- endif %}
+    <form method="post" action="/assets/computers/{{ computer.id }}/delete" class="action-row">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn danger" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-trash"/></svg>{{ t.get("computers-delete") }}</button>
+      <span class="help">{{ t.get("computers-delete-help") }}</span>
+    </form>
+  </div>
+</section>
+</div>
+</div>
+{% endblock %}

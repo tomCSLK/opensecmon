@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="{{ t.code() }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}opensecmon{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <script type="application/json" id="i18n">{{ t.js_texts()|safe }}</script>
+  <script src="/static/theme.js"></script>
+  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/time.js" defer></script>
+  <script src="/static/app.js" defer></script>
+  <script src="/static/session.js" defer></script>
+  <script src="/static/cves.js" defer></script>
+  <script src="/static/sources.js" defer></script>
+  <script src="/static/assets.js" defer></script>
+  <script src="/static/inbox.js" defer></script>
+  <script src="/static/inventory.js" defer></script>
+</head>
+<body>
+{% include "icons.html" %}
+{% block body %}{% endblock %}
+</body>
+</html>

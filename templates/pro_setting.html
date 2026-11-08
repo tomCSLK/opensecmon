@@ -1,0 +1,14 @@
+{#- The setting "Ubuntu Pro" of a host or computer (included in its manage card when `pro` is set). -#}
+{%- if let Some(p) = pro %}
+    <form method="post" action="{{ p.action }}" class="action-row">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <label for="proMode">{{ t.get("pro-mode-label") }}</label>
+      <select id="proMode" name="pro_mode">
+        {%- for (value, label, selected) in p.options %}
+        <option value="{{ value }}"{% if *selected %} selected{% endif %}>{{ label }}</option>
+        {%- endfor %}
+      </select>
+      <button class="btn" type="submit">{{ t.get("asset-save") }}</button>
+      <span class="help">{{ p.help }}</span>
+    </form>
+{%- endif %}

@@ -1,0 +1,77 @@
+{#- CSV import: the text of the file, the preview per row, take over. The text and every value of the preview
+    come from the user and are escaped. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("csv-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ t.get("assets-title") }}</h1>
+    <p>{{ t.get("assets-subtitle") }}</p>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+<section class="card">
+  <header><h2>{{ t.get("csv-title") }}</h2></header>
+  <div class="cbody">
+    <form method="post" action="/assets/csv">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <label class="dropzone" data-dropzone data-max="{{ max_bytes }}" for="csvFile" hidden>
+        <svg class="ico xl" aria-hidden="true" focusable="false"><use href="#i-upload"/></svg>
+        <span><b>{{ t.get("csv-drop") }}</b></span>
+        <span class="small muted">{{ rules }}</span>
+        <input id="csvFile" type="file" accept=".csv,text/csv,text/plain" class="sr-only">
+        <span class="small" id="csvFileStatus" role="status"></span>
+      </label>
+      <div class="field">
+        <label for="csvText">{{ t.get("csv-text") }}</label>
+        <textarea id="csvText" name="text" rows="10" class="mono" spellcheck="false" placeholder="{{ example }}">{{ text }}</textarea>
+        <span class="help">{{ t.get("csv-text-help") }}</span>
+      </div>
+      <div class="inline-row">
+        <button class="btn" type="submit" name="action" value="preview">{{ t.get("asset-preview") }}</button>
+        {%- if let Some(p) = preview %}
+        {%- if p.importable > 0 %}
+        <button class="btn primary" type="submit" name="action" value="import">{{ t.get1("csv-import", "count", p.importable) }}</button>
+        {%- endif %}
+        {%- endif %}
+      </div>
+    </form>
+  </div>
+</section>
+{%- if let Some(p) = preview %}
+<section class="card">
+  <header><h2>{{ t.get("asset-preview-title") }}</h2><span class="small muted">{{ p.summary }}</span></header>
+  <div class="tblwrap">
+    <table class="tbl csvprev">
+      <thead><tr><th class="num">{{ t.get("csv-col-line") }}</th><th>{{ t.get("csv-col-state") }}</th><th>{{ t.get("assets-col-asset") }}</th><th>{{ t.get("assets-col-version") }}</th><th class="hide-sm">{{ t.get("asset-host") }}</th></tr></thead>
+      <tbody>
+      {%- for r in p.rows %}
+        <tr>
+          <td class="num mono small">{{ r.line }}</td>
+          <td><span class="state {{ r.class }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ r.icon }}"/></svg>{{ r.state }}</span>{% if !r.error.is_empty() %}<div class="small">{{ r.error }}</div>{% endif %}</td>
+          <td>{% if let Some(a) = r.asset_id %}<a href="/assets/{{ a }}">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}<div class="small muted">{{ r.kind }}</div></td>
+          <td class="mono small">{{ r.version }}</td>
+          <td class="small hide-sm">{{ r.host }}</td>
+        </tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- if !p.more.is_empty() %}
+  <p class="listfoot small muted">{{ p.more }}</p>
+  {%- endif %}
+</section>
+{%- endif %}
+<section class="card">
+  <header><h2>{{ t.get("csv-columns") }}</h2></header>
+  <div class="cbody">
+    <div class="codebox" data-copy-box>{{ example }}</div>
+    <p class="small muted">{{ t.get("csv-columns-help") }}</p>
+  </div>
+</section>
+</div>
+</div>
+{% endblock %}

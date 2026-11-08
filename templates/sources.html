@@ -1,0 +1,110 @@
+{#- The state of the sources (docs/entwurf/quellen.html). Every form works without JavaScript;
+    static/sources.js opens the details rows, submits the switch and refreshes the table while a source runs. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("sources-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ t.get("sources-title") }}</h1>
+    <p>{{ t.get("sources-subtitle") }}</p>
+  </div>
+  <form method="post" action="/sources/run">
+    <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+    <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>{{ t.get("sources-run-all") }}</button>
+  </form>
+</div>
+{% include "flash.html" %}
+{%- if !scheduled %}
+<p class="notice info"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ t.get("sources-manual-only") }}</span></p>
+{%- endif %}
+<div class="card" id="srctable"{% if running %} data-live="5"{% endif %}>
+  <div class="tblwrap">
+    <table class="tbl" id="stbl">
+      <thead>
+        <tr>
+          <th>{{ t.get("sources-col-state") }}</th>
+          <th>{{ t.get("sources-col-source") }}</th>
+          <th class="num">{{ t.get("sources-col-last") }}</th>
+          <th class="num hide-sm">{{ t.get("sources-col-duration") }}</th>
+          <th class="num">{{ t.get("sources-col-new") }}</th>
+          <th class="num hide-sm">{{ t.get("sources-col-changed") }}</th>
+          <th class="hide-sm">{{ t.get("sources-col-next") }}</th>
+          <th class="hide-sm">{{ t.get("sources-col-interval") }}</th>
+          <th>{{ t.get("sources-col-enabled") }}</th>
+          <th><span class="sr-only">{{ t.get("sources-col-actions") }}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {%- for s in rows %}
+        <tr>
+          <td><span class="state {{ s.health }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ s.health_icon }}"/></svg>{{ s.health_label }}</span>{% if let Some(p) = s.progress %} <span class="muted small">{{ p }}</span>{% endif %}</td>
+          <td><b>{{ s.label }}</b>{% if let Some(href) = s.manage %} <a class="small" href="{{ href }}">{{ t.get("sources-vendors-manage") }}</a>{% endif %}{% if s.warning.is_some() %} <svg class="ico sm warnmark" aria-label="{{ t.get("sources-warning") }}" role="img"><use href="#i-alert"/></svg>{% endif %}</td>
+          <td class="num">{% if let Some(last) = s.last_run %}{{ last|safe }}{% else %}–{% endif %}</td>
+          <td class="num hide-sm">{{ s.duration }}</td>
+          <td class="num">{{ s.new }}</td>
+          <td class="num hide-sm">{{ s.changed }}</td>
+          <td class="small hide-sm">{% if let Some(next) = s.next_run %}{{ next|safe }}{% else %}–{% endif %}</td>
+          <td class="small hide-sm">{{ s.interval }}</td>
+          <td>
+            <form method="post" action="/sources/{{ s.id }}">
+              <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+              <input type="hidden" name="interval_secs" value="{% for i in s.intervals %}{% if i.current %}{{ i.secs }}{% endif %}{% endfor %}">
+              <label class="switch"><input type="checkbox" name="enabled" value="1"{% if s.enabled %} checked{% endif %} data-autosubmit aria-label="{{ s.label }}: {{ t.get("sources-col-enabled") }}"></label>
+              <noscript><button class="btn sm" type="submit">{{ t.get("sources-save") }}</button></noscript>
+            </form>
+          </td>
+          <td class="nowrap">
+            <div class="row-actions">
+            <form class="inline" method="post" action="/sources/{{ s.id }}/run">
+              <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+              <button class="btn sm ghost" type="submit"{% if !s.enabled %} disabled{% endif %}><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg><span class="hide-sm">{{ t.get("sources-run") }}</span></button>
+            </form>
+            <button class="iconbtn" type="button" data-more="{{ s.id }}" aria-expanded="{% if s.open %}true{% else %}false{% endif %}" aria-controls="more-{{ s.id }}" aria-label="{{ t.get("sources-details") }}: {{ s.label }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-down"/></svg></button>
+            </div>
+          </td>
+        </tr>
+        <tr class="more" id="more-{{ s.id }}"{% if !s.open %} data-closed{% endif %}>
+          <td></td>
+          <td colspan="9">
+            <div class="small moreinfo">
+              {%- if let Some(e) = s.error %}
+              <div class="notice warn"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-x-circle"/></svg><span>{{ e }}</span></div>
+              {%- endif %}
+              {%- if let Some(w) = s.warning %}
+              <div class="notice warn"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span><b>{{ t.get("sources-warning") }}:</b> {{ w }}</span></div>
+              {%- endif %}
+              {%- if let Some(d) = s.data_state %}
+              <p>{{ d }}</p>
+              {%- endif %}
+              {%- if let Some(href) = s.manage %}
+              <p><a class="btn sm" href="{{ href }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-settings"/></svg>{{ t.get("sources-vendors-manage") }}</a></p>
+              {%- endif %}
+              <p class="muted"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-info"/></svg> {{ s.notice }}</p>
+              <form class="inline-form" method="post" action="/sources/{{ s.id }}">
+                <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+                <label class="check"><input type="checkbox" name="enabled" value="1"{% if s.enabled %} checked{% endif %}> {{ t.get("sources-enabled") }}</label>
+                <label for="iv-{{ s.id }}">{{ t.get("sources-col-interval") }}</label>
+                <select id="iv-{{ s.id }}" name="interval_secs">
+                  {%- for i in s.intervals %}
+                  <option value="{{ i.secs }}"{% if i.current %} selected{% endif %}>{{ i.label }}</option>
+                  {%- endfor %}
+                </select>
+                <button class="btn sm" type="submit">{{ t.get("sources-save") }}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<section class="card notes">
+  <header><h2>{{ t.get("sources-notices") }}</h2></header>
+  <div class="cbody small">
+    {%- for s in rows %}
+    <p><b>{{ s.label }}:</b> {{ s.notice }}</p>
+    {%- endfor %}
+  </div>
+</section>
+{% endblock %}

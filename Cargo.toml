@@ -1,0 +1,111 @@
+[package]
+name = "opensecmon"
+version = "0.3.5"
+edition = "2024"
+description = "opensecmon – security advisory monitoring for your own hardware and software"
+authors = ["Thomas Cieslik"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/tomCSLK/opensecmon"
+publish = false
+
+[dependencies]
+anyhow = "1"
+argon2 = "0.6.0"
+# Without "config": no askama.toml, and so no unmaintained basic-toml (RUSTSEC-2026-0374).
+askama = { version = "0.16.1", default-features = false, features = ["derive", "std", "urlencode"] }
+axum = "0.8"
+chacha20poly1305 = "0.11.0"
+clap = { version = "4", features = ["derive"] }
+fluent-bundle = "0.16"
+# Gzip of the sources (EPSS, NVD) and of HTTP responses.
+flate2 = { version = "1.1.10", default-features = false, features = ["zlib-rs"] }
+http-body-util = "0.1.5"
+# HTTP client for the sources (as in opennetmon): HTTP/1.1 over rustls with the Mozilla roots; the server side
+# serves the built-in HTTPS.
+hyper = { version = "1", features = ["client", "http1", "server"] }
+hyper-util = { version = "0.1", features = ["http1", "server", "server-graceful", "service", "tokio"] }
+lettre = { version = "0.11.23", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls-tls"] }
+rand = "0.9"
+# Self-signed certificate for the built-in HTTPS (`opensecmon tls generate`), as in opennetmon.
+rcgen = { version = "0.14.10", default-features = false, features = ["crypto", "pem", "ring"] }
+rpassword = "7.5.4"
+rust-embed = { version = "8.13.0", features = ["mime-guess"] }
+rustix = { version = "1.1.5", features = ["fs"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.11.1"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "migrate", "macros", "derive"] }
+subtle = "2.6.1"
+thiserror = "2.0.21"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "signal", "sync", "fs", "io-util"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["logging", "ring", "tls12"] }
+toml = "1.1.8"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["trace", "compression-gzip", "set-header"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+unic-langid = "0.9"
+jiff = "0.2.38"
+webpki-roots = "1.0.11"
+# The CVE list comes as zip files (cvelistV5 releases).
+zip = { version = "9.4.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+# SSH client for reading the package lists of hosts (pure Rust, in the process). With ring (as rustls), without
+# aws-lc-rs (C build) and without RSA keys (the rsa crate has an open advisory, RUSTSEC-2023-0071).
+russh = { version = "0.65.1", default-features = false, features = ["ring"] }
+
+[features]
+# A small SSH server for trying the host wizard without a real host (examples/fake_ssh_host.rs).
+fake-host = []
+
+[[example]]
+name = "fake_ssh_host"
+required-features = ["fake-host"]
+
+[dev-dependencies]
+base64 = "0.23.1"
+tempfile = "3.27.0"
+tokio = { version = "1", features = ["io-util", "test-util"] }
+
+# Argon2 is far too slow unoptimized; keep debug builds and tests usable.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[package.metadata.deb]
+maintainer = "Thomas Cieslik <m.tomcs@gmail.com>"
+copyright = "2026, Thomas Cieslik"
+license-file = "LICENSE"
+extended-description = """\
+Collects security advisories from public sources (BSI CERT-Bund, CISA KEV, EPSS, CVE/NVD, vendor CSAF, Debian and \
+Ubuntu) and shows the ones that affect your own software and hardware as a triage inbox, with instant mails and a \
+daily report. A single static binary with an SQLite database, run as a hardened systemd service behind a TLS \
+reverse proxy."""
+section = "admin"
+priority = "optional"
+depends = "passwd"
+maintainer-scripts = "deploy/deb/"
+assets = [
+    ["target/release/opensecmon", "usr/bin/", "755"],
+    ["deploy/opensecmon-backup.sh", "usr/sbin/opensecmon-backup", "755"],
+    ["deploy/config.example.toml", "etc/opensecmon/config.toml", "640"],
+    ["deploy/opensecmon.service", "usr/lib/systemd/system/", "644"],
+    ["deploy/opensecmon-backup.service", "usr/lib/systemd/system/", "644"],
+    ["deploy/opensecmon-backup.timer", "usr/lib/systemd/system/", "644"],
+    ["THIRD-PARTY-LICENSES.txt", "usr/share/doc/opensecmon/", "644"],
+    ["README.md", "usr/share/doc/opensecmon/", "644"],
+    # The packages of opensecagent with their signatures (dev/agent-packages.sh puts them there), offered to the
+    # computers for download and as updates. The README keeps the folder present when there are none.
+    ["dist/agent/*", "usr/share/opensecmon/agent/", "644"],
+]
+# Enabled, but not started on the first installation (there is no user yet); restarted on upgrades if running.
+# The backup timer is started by postinst.
+systemd-units = [
+    { unit-name = "opensecmon", enable = true, start = false, restart-after-upgrade = true },
+    { unit-name = "opensecmon-backup", enable = true, start = false, restart-after-upgrade = true },
+]

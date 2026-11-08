@@ -1,0 +1,5 @@
+{#- The hidden fields of every triage form (`a`: Actions). -#}
+<input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+<input type="hidden" name="vuln" value="{{ a.vuln }}">
+<input type="hidden" name="back" value="{{ a.back }}">
+<input type="hidden" name="next" value="{{ a.next }}">

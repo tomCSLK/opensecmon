@@ -1,0 +1,5 @@
+{#- The two views of "All CVEs": the CVE list and the advisories (layout.active is "cves" for both). -#}
+<nav class="viewtabs" aria-label="{{ t.get("view-label") }}">
+  <a href="/cves"{% if view == "cves" %} aria-current="page"{% endif %}>{{ t.get("view-cves") }}</a>
+  <a href="/advisories"{% if view == "advisories" %} aria-current="page"{% endif %}>{{ t.get("view-advisories") }}</a>
+</nav>

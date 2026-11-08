@@ -1,0 +1,49 @@
+{#- Computers that report their software themselves (agent API). Names, host names, systems and programs come
+    from the user or the computer and are escaped. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("computers-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ t.get("assets-title") }}</h1>
+    <p>{{ t.get("assets-subtitle") }}</p>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+<div class="card">
+  <header><h2>{{ t.get("computers-title") }}</h2><div class="action-row">{%- if updatable > 0 %}<form method="post" action="/assets/computers/update-all"><input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}"><button class="btn sm" type="submit"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-download"/></svg>{{ t.get1("computers-update-all", "count", updatable) }}</button></form>{%- endif %}<a class="btn sm" href="/assets/computers/new"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>{{ t.get("computers-add") }}</a></div></header>
+  {%- if computers.is_empty() %}
+  <div class="empty">
+    <div>
+      <svg class="ico xl neutral" aria-hidden="true" focusable="false"><use href="#i-cpu"/></svg>
+      <h2>{{ t.get("computers-none-title") }}</h2>
+      <p>{{ t.get("computers-none-text") }}</p>
+    </div>
+  </div>
+  {%- else %}
+  <div class="tblwrap">
+    <table class="tbl hosts">
+      <thead><tr><th>{{ t.get("hosts-col-name") }}</th><th>{{ t.get("hosts-col-system") }}</th><th class="hide-sm">{{ t.get("computers-col-agent") }}</th><th class="num">{{ t.get("hosts-col-packages") }}</th><th class="hide-sm">{{ t.get("computers-col-seen") }}</th><th>{{ t.get("hosts-col-state") }}</th></tr></thead>
+      <tbody>
+      {%- for c in computers %}
+        <tr>
+          <td><a href="/assets/computers/{{ c.id }}"><b>{{ c.name }}</b></a>{% if !c.hostname.is_empty() && c.hostname != c.name %}<div class="small muted mono">{{ c.hostname }}</div>{% endif %}</td>
+          <td class="small">{% if c.system.is_empty() %}<span class="muted">–</span>{% else %}{{ c.system }}{% endif %}{%- if let Some(k) = c.kernel %}<div class="small{% if !k.reboot %} muted{% endif %}">{% if k.reboot %}<span class="state warn"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg>{{ k.text }}</span>{% else %}{{ k.text }}{% endif %}</div>{% endif %}</td>
+          <td class="small hide-sm">{% if c.agent.is_empty() %}<span class="muted">–</span>{% else %}{{ c.agent }}{% endif %}{% if !c.update.is_empty() %}<div><span class="badge">{{ c.update }}</span></div>{% endif %}</td>
+          <td class="num">{% if c.packages > 0 %}<a href="/assets?host={{ c.name|urlencode }}">{{ c.packages }}</a>{% if !c.affected.is_empty() %}<div class="small"><a class="sev high" href="/assets?host={{ c.name|urlencode }}&amp;open=1">{{ c.affected }}</a></div>{% endif %}{% else %}<span class="muted">–</span>{% endif %}{% if !c.unassigned.is_empty() %}<div class="small"><a href="/assets/unassigned">{{ c.unassigned }}</a></div>{% endif %}</td>
+          <td class="small hide-sm">{% if let Some(l) = c.last %}{{ l|safe }}{% else %}<span class="muted">–</span>{% endif %}</td>
+          <td><span class="state {{ c.state }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ c.icon }}"/></svg>{{ c.state_text }}</span></td>
+        </tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+  <div class="cbody small muted">{{ t.get("computers-footer") }}</div>
+</div>
+</div>
+</div>
+{% endblock %}

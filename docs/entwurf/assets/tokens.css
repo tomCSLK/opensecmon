@@ -1,0 +1,154 @@
+/* Entwurf opensecmon – Design-Tokens (hell/dunkel).
+   Nur diese Datei soll später in die Anwendung übernommen werden. */
+
+@font-face { font-family: "Fira Sans"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("../fonts/fira-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Fira Sans"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("../fonts/fira-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Fira Sans"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("../fonts/fira-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Fira Code"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("../fonts/fira-code-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Fira Code"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("../fonts/fira-code-latin-500-normal.woff2") format("woff2"); }
+
+:root {
+  color-scheme: light;
+
+  /* Schrift */
+  --font-sans: "Fira Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Fira Code", ui-monospace, "JetBrains Mono", monospace;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --lh: 1.45;
+
+  /* Abstände (dicht) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --row-h: 34px;
+  --ctl-h: 32px;
+  --header-h: 48px;
+  --radius: 6px;
+  --radius-sm: 4px;
+
+  /* Flächen (neutrales Grau) */
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f0f2f4;
+  --surface-3: #e6e9ed;
+  --hover: #eef1f4;
+  --selected: #e7eef8;
+  --border: #dde1e6;
+  --border-strong: #c3cad2;
+
+  /* Text */
+  --text: #15181c;
+  --text-2: #444d59;   /* 8,6:1 auf Weiß */
+  --text-3: #636c78;   /* 5,3:1 auf Weiß, 4,9:1 auf --bg */
+  --text-inv: #ffffff;
+
+  /* Akzent: ein ruhiges Blau */
+  --accent: #1c5ea8;       /* 6,5:1 auf Weiß */
+  --accent-hover: #164d8b;
+  --accent-bg: #e6eef8;
+  --accent-text: #ffffff;
+  --focus: #1c5ea8;
+
+  /* Schweregrade: Textfarbe (≥ 4,5:1 auf Fläche und Tönung) + Tönung */
+  --crit: #a1132c;  --crit-bg: #fbe8eb;  --crit-line: #e7a3ae;
+  --high: #a6400c;  --high-bg: #fcefe6;  --high-line: #eab595;
+  --med:  #7a5600;  --med-bg:  #fbf3d9;  --med-line:  #dcc275;
+  --low:  #46596d;  --low-bg:  #edf1f5;  --low-line:  #b5c2cf;
+
+  /* KEV: invertiertes Abzeichen, unabhängig von Farbe erkennbar */
+  --kev-bg: #15181c;
+  --kev-text: #ffffff;
+
+  /* Zustände */
+  --ok: #1d6b3c;    --ok-bg: #e6f3ea;
+  --warn: #7a5600;  --warn-bg: #fbf3d9;
+  --err: #a1132c;   --err-bg: #fbe8eb;
+
+  --shadow-1: 0 1px 2px rgba(16, 24, 32, .06);
+  --shadow-2: 0 8px 28px rgba(16, 24, 32, .16), 0 1px 3px rgba(16, 24, 32, .08);
+  --scrim: rgba(16, 20, 26, .38);
+}
+
+/* Dunkel: per Schalter … */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #101215;
+  --surface: #171a1e;
+  --surface-2: #1d2126;
+  --surface-3: #262b31;
+  --hover: #1f242a;
+  --selected: #1b2838;
+  --border: #2a2f36;
+  --border-strong: #3a414a;
+  --text: #e5e8ec;
+  --text-2: #b0b8c2;
+  --text-3: #8d96a1;   /* 5,8:1 auf --surface */
+  --text-inv: #101215;
+  --accent: #7aaeea;
+  --accent-hover: #9cc3f0;
+  --accent-bg: #19283a;
+  --accent-text: #0d1622;
+  --focus: #7aaeea;
+  --crit: #ff8d9d;  --crit-bg: #361920;  --crit-line: #7a3542;
+  --high: #ffab73;  --high-bg: #35231a;  --high-line: #7a4a2c;
+  --med:  #e8c45f;  --med-bg:  #2f2814;  --med-line:  #6b5a26;
+  --low:  #a3b5c8;  --low-bg:  #1f262e;  --low-line:  #44505d;
+  --kev-bg: #eef0f3;
+  --kev-text: #101215;
+  --ok: #73d29a;    --ok-bg: #15291e;
+  --warn: #e8c45f;  --warn-bg: #2f2814;
+  --err: #ff8d9d;   --err-bg: #361920;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .3);
+  --shadow-2: 0 10px 32px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4);
+  --scrim: rgba(0, 0, 0, .55);
+}
+
+/* … oder nach Systemeinstellung, solange nichts gewählt ist */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
+    --bg: #101215;
+    --surface: #171a1e;
+    --surface-2: #1d2126;
+    --surface-3: #262b31;
+    --hover: #1f242a;
+    --selected: #1b2838;
+    --border: #2a2f36;
+    --border-strong: #3a414a;
+    --text: #e5e8ec;
+    --text-2: #b0b8c2;
+    --text-3: #8d96a1;
+    --text-inv: #101215;
+    --accent: #7aaeea;
+    --accent-hover: #9cc3f0;
+    --accent-bg: #19283a;
+    --accent-text: #0d1622;
+    --focus: #7aaeea;
+    --crit: #ff8d9d;  --crit-bg: #361920;  --crit-line: #7a3542;
+    --high: #ffab73;  --high-bg: #35231a;  --high-line: #7a4a2c;
+    --med:  #e8c45f;  --med-bg:  #2f2814;  --med-line:  #6b5a26;
+    --low:  #a3b5c8;  --low-bg:  #1f262e;  --low-line:  #44505d;
+    --kev-bg: #eef0f3;
+    --kev-text: #101215;
+    --ok: #73d29a;    --ok-bg: #15291e;
+    --warn: #e8c45f;  --warn-bg: #2f2814;
+    --err: #ff8d9d;   --err-bg: #361920;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .3);
+    --shadow-2: 0 10px 32px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4);
+    --scrim: rgba(0, 0, 0, .55);
+  }
+}

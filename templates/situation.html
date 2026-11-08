@@ -1,0 +1,85 @@
+{#- The situation (docs/entwurf/lage.html): tiles, the trend of the open vulnerabilities, the most affected
+    hosts, the oldest open matches and the sources. Host names and titles come from users and sources; all
+    escaped. The SVG has only numbers and class names from the server. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("situation-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ t.get("situation-title") }}</h1>
+    <p>{{ subtitle }}</p>
+  </div>
+  <a class="btn" href="/"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-inbox"/></svg>{{ t.get("situation-to-inbox") }}</a>
+</div>
+<div class="tiles">
+  {%- for tile in tiles %}
+  <a class="tile {{ tile.class }}" href="{{ tile.href }}"><div class="k"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ tile.icon }}"/></svg>{{ tile.label }}</div><div class="v">{{ tile.value }}</div><div class="s">{{ tile.sub }}</div></a>
+  {%- endfor %}
+</div>
+<div class="grid2">
+  <section class="card">
+    <header><h2>{{ t.get("situation-chart-title") }}</h2><span class="muted small">{{ t.get("situation-chart-by") }}</span></header>
+    <div class="cbody chart">
+      <svg viewBox="0 0 720 230" role="img" aria-label="{{ chart.label }}">
+        <g class="grid">{% for g in chart.grid %}<line x1="34" x2="712" y1="{{ g.y }}" y2="{{ g.y }}"/>{% endfor %}</g>
+        <g class="axis">{% for l in chart.labels %}<text x="{{ l.x }}" y="{{ l.y }}"{% if loop.index0 < chart.grid.len() %} text-anchor="end"{% else %} text-anchor="middle"{% endif %}>{{ l.text }}</text>{% endfor %}</g>
+        {%- for b in chart.bars %}
+        <g{% if b.derived %} class="derived"{% endif %}><title>{{ b.title }}</title>{% for s in b.segments %}<rect class="{{ s.class }}" x="{{ s.x }}" y="{{ s.y }}" width="{{ s.w }}" height="{{ s.h }}" rx="1"/>{% endfor %}</g>
+        {%- endfor %}
+      </svg>
+      <div class="legend">
+        {%- for l in legend %}<span><span class="sev {{ l.band }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ l.band }}"/></svg></span>{{ l.label }}</span>{% endfor %}
+        {%- if chart.any_derived %}<span class="muted">{{ t.get("situation-derived-note") }}</span>{% endif %}
+      </div>
+    </div>
+  </section>
+  <section class="card">
+    <header><h2>{{ t.get("situation-hosts-title") }}</h2><a class="small" href="/assets">{{ t.get("nav-assets") }}</a></header>
+    <div class="cbody">
+      {%- for h in hosts %}
+      <div class="hbar">
+        {%- if let Some(href) = h.href %}<a href="{{ href }}">{{ h.label }}</a>{% else %}<span>{{ h.label }}</span>{% endif %}
+        <svg class="b" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="{{ h.title }}"><title>{{ h.title }}</title>{% for s in h.segments %}<rect class="{{ s.class }}" x="{{ s.x }}" y="0" width="{{ s.w }}" height="8"/>{% endfor %}</svg>
+        <span class="n">{{ h.total }}</span>
+      </div>
+      {%- else %}
+      <p class="muted">{{ t.get("situation-none-open") }}</p>
+      {%- endfor %}
+    </div>
+  </section>
+</div>
+<div class="grid2">
+  <section class="card">
+    <header><h2>{{ t.get("situation-oldest-title") }}</h2></header>
+    {%- if oldest.is_empty() %}
+    <div class="cbody"><p class="muted">{{ t.get("situation-none-open") }}</p></div>
+    {%- else %}
+    <div class="tblwrap">
+      <table class="tbl oldest">
+        <thead><tr><th>{{ t.get("situation-col-prio") }}</th><th>{{ t.get("situation-col-id") }}</th><th>{{ t.get("situation-col-asset") }}</th><th class="num">{{ t.get("situation-col-open") }}</th></tr></thead>
+        <tbody>
+          {%- for o in oldest %}
+          <tr>
+            <td><span class="prio {{ o.band }}" title="{{ o.prio_title }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ o.band }}"/></svg><span>{{ o.prio }}</span></span>{% if o.kev %} <span class="kev"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KEV</span>{% endif %}</td>
+            <td class="mono small"><a href="{{ o.href }}">{{ o.label }}</a></td>
+            <td>{{ o.asset }}</td>
+            <td class="num nowrap">{{ o.age }}</td>
+          </tr>
+          {%- endfor %}
+        </tbody>
+      </table>
+    </div>
+    {%- endif %}
+  </section>
+  <section class="card">
+    <header><h2>{{ t.get("nav-sources") }}</h2><a class="small" href="/sources">{{ t.get("situation-sources-details") }}</a></header>
+    <div class="cbody">
+      {%- for s in sources %}
+      <div class="hbar src"><span>{{ s.label }}</span><span class="state {{ s.class }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ s.icon }}"/></svg>{{ s.state }}{% if let Some(last) = s.last %} <span class="muted">{{ last|safe }}</span>{% endif %}</span></div>
+      {%- else %}
+      <p class="muted">{{ t.get("situation-no-sources") }}</p>
+      {%- endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

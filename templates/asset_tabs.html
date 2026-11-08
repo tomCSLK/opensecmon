@@ -1,0 +1,7 @@
+{#- The areas of the page "Assets" (left column): the assets, the watchlist, the hosts read over SSH, the computers
+    of the agent API, the import from opennetmon and the CSV import. -#}
+<nav class="subnav" aria-label="{{ t.get("assets-areas") }}">
+  {%- for tab in tabs %}
+  <a href="{{ tab.href }}"{% if tab.current %} aria-current="page"{% endif %}><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ tab.icon }}"/></svg>{{ tab.label }}{% if tab.count >= 0 %}<span class="n">{{ tab.count }}</span>{% endif %}</a>
+  {%- endfor %}
+</nav>

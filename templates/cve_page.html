@@ -1,0 +1,9 @@
+{#- One CVE as a page of its own: links from the search, from mails and from other pages. -#}
+{% extends "app.html" %}
+{% block title %}{{ d.id }} – opensecmon{% endblock %}
+{% block main_class %}page{% endblock %}
+{% block content %}
+<article class="detailpage">
+{% include "cve_detail.html" %}
+</article>
+{% endblock %}

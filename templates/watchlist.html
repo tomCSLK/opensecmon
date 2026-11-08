@@ -1,0 +1,51 @@
+{#- Watchlist: keywords for devices and programs without a clean identifier. Keywords come from the user and
+    are escaped. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("watch-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ t.get("assets-title") }}</h1>
+    <p>{{ t.get("assets-subtitle") }}</p>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+<section class="card">
+  <header><h2>{{ t.get("watch-title") }}</h2></header>
+  <div class="cbody">
+    <p class="muted">{{ t.get("watch-text") }} <span class="tag conf-niedrig">{{ t.get("match-confidence-low") }}</span></p>
+    {%- if watches.is_empty() %}
+    <p class="muted small">{{ t.get("watch-none") }}</p>
+    {%- else %}
+    <ul class="kwlist">
+      {%- for w in watches %}
+      <li class="chip">
+        {% if w.open > 0 %}<a href="/?watch={{ w.id }}">{{ w.keyword }}</a>{% else %}{{ w.keyword }}{% endif %}
+        <span class="muted small">{{ t.get1("watch-open", "count", w.open) }} · {{ t.get("watch-since") }} {{ w.since }}</span>
+        <form class="inline-form" method="post" action="/assets/watchlist/{{ w.id }}/delete">
+          <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+          <button type="submit" aria-label="{{ t.get("watch-delete") }}: {{ w.keyword }}" title="{{ t.get("watch-delete") }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></button>
+        </form>
+      </li>
+      {%- endfor %}
+    </ul>
+    {%- endif %}
+    <form method="post" action="/assets/watchlist" class="kwform">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <div class="field">
+        <label for="kwNew">{{ t.get("watch-keyword") }}</label>
+        <div class="inline-row">
+          <input id="kwNew" name="keyword" type="text" value="{{ keyword }}" maxlength="100" placeholder="Zyxel NAS326" autocomplete="off">
+          <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>{{ t.get("watch-add") }}</button>
+        </div>
+        <span class="help">{{ t.get("watch-add-help") }}</span>
+      </div>
+    </form>
+  </div>
+</section>
+</div>
+</div>
+{% endblock %}

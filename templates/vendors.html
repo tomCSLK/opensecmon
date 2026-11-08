@@ -1,0 +1,94 @@
+{#- Vendor CSAF: the CSAF providers the source "Vendor CSAF" loads. Every form works without JavaScript. Names
+    and texts of the providers are data from outside and escaped. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("vendors-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <a class="btn ghost sm" href="/sources"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("vendors-back") }}</a>
+    <h1>{{ t.get("vendors-title") }}</h1>
+    <p>{{ t.get("vendors-subtitle") }}</p>
+  </div>
+</div>
+<div class="stack">
+{% include "flash.html" %}
+
+<section class="card">
+  <header><h2>{{ t.get("vendors-add") }}</h2></header>
+  <div class="cbody">
+    <p class="muted small">{{ t.get("vendors-add-help") }}</p>
+    <form method="post" action="/sources/vendors">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <div class="field-row">
+        <div class="field">
+          <label for="listed">{{ t.get("vendors-listed") }}</label>
+          <select id="listed" name="listed">
+            <option value="">{{ t.get("vendors-listed-choose") }}</option>
+            {%- for l in listed %}
+            <option value="{{ l.url }}">{{ l.label }}</option>
+            {%- endfor %}
+          </select>
+          <span class="help">{% if let Some(loaded) = lister_loaded %}{{ t.get("vendors-lister-loaded") }} {{ loaded|safe }}{% else %}{{ t.get("vendors-listed-empty") }}{% endif %}</span>
+        </div>
+        <div class="field">
+          <label for="url">{{ t.get("vendors-own-url") }}</label>
+          <input id="url" name="url" type="url" maxlength="1000" placeholder="https://example.com/.well-known/csaf/provider-metadata.json" autocapitalize="off" spellcheck="false">
+          <span class="help">{{ t.get("vendors-own-url-help") }}</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="since">{{ t.get("vendors-since") }}</label>
+        <input id="since" name="since" type="date" value="{{ default_since }}" max="{{ today }}">
+        <span class="help">{{ t.get("vendors-since-help") }}</span>
+      </div>
+      <p class="small muted">{{ t.get("vendors-heavy-note") }}</p>
+      <button class="btn primary" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>{{ t.get("vendors-add-submit") }}</button>
+    </form>
+    <form class="inline-form" method="post" action="/sources/vendors/lister">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn sm ghost" type="submit"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>{{ t.get("vendors-lister-load") }}</button>
+    </form>
+  </div>
+</section>
+
+{%- if providers.is_empty() %}
+<p class="muted">{{ t.get("vendors-none") }}</p>
+{%- endif %}
+{%- for p in providers %}
+<section class="card">
+  <header>
+    <h2>{{ p.name }}</h2>
+    <span class="muted small">{{ p.documents }} {{ t.get("vendors-documents") }} · {{ t.get("vendors-checked") }} {% if let Some(c) = p.checked %}{{ c|safe }}{% else %}{{ t.get("vendors-never") }}{% endif %}</span>
+  </header>
+  <div class="cbody">
+    <p class="small mono url">{{ p.url }}</p>
+    {%- if let Some(e) = p.error %}
+    <div class="notice warn"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-x-circle"/></svg><span>{{ e }}</span></div>
+    {%- endif %}
+    <form method="post" action="/sources/vendors/{{ p.id }}">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <div class="field">
+        <label class="switch"><input type="checkbox" name="enabled" value="1"{% if p.enabled %} checked{% endif %}> {{ t.get("vendors-enabled") }}</label>
+      </div>
+      <div class="field">
+        <label for="since-{{ p.id }}">{{ t.get("vendors-since") }}</label>
+        <input id="since-{{ p.id }}" name="since" type="date" value="{{ p.since }}" max="{{ today }}">
+      </div>
+      <fieldset class="field">
+        <legend>{{ t.get("vendors-dists") }}</legend>
+        <span class="help">{{ t.get("vendors-dists-help") }}</span>
+        {%- for d in p.dists %}
+        <label class="check"><input type="checkbox" name="dist" value="{{ d.url }}"{% if d.on %} checked{% endif %}> <span class="tag">{{ d.kind }}</span> {{ d.label }} <span class="muted small url">{{ d.url }}</span></label>
+        {%- endfor %}
+      </fieldset>
+      <button class="btn sm" type="submit">{{ t.get("vendors-save") }}</button>
+    </form>
+    <form class="inline-form" method="post" action="/sources/vendors/{{ p.id }}/delete">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn sm ghost danger" type="submit"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-trash"/></svg>{{ t.get("vendors-delete") }}</button>
+    </form>
+  </div>
+</section>
+{%- endfor %}
+</div>
+{% endblock %}

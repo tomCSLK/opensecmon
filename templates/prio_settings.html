@@ -1,0 +1,95 @@
+{% extends "app.html" %}
+{% block title %}{{ t.get("settings-priority") }} – opensecmon{% endblock %}
+{% block content %}
+{% let section = "priority" %}
+<div class="pagehead"><div><h1>{{ t.get("nav-settings") }}</h1></div></div>
+<div class="split settings">
+{% include "settings_nav.html" %}
+<div class="stack">
+  {% include "flash.html" %}
+  {% if pending %}
+  <p class="notice info" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg><span>{{ t.get("prio-pending") }}</span></p>
+  {% endif %}
+
+  <section class="card">
+    <header><h2>{{ t.get("prio-title") }}</h2></header>
+    <form method="post" action="/settings/priority">
+      <div class="cbody">
+        <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+        <p class="muted">{{ t.get("prio-subtitle") }}</p>
+        <div class="field">
+          <label for="cvss_weight">{{ t.get("prio-cvss") }}</label>
+          <input class="num-sm" id="cvss_weight" name="cvss_weight" type="text" inputmode="decimal" maxlength="5" value="{{ form.cvss_weight }}">
+          <span class="help">{{ t.get1("prio-cvss-hint", "default", defaults.cvss_weight.as_str()) }}</span>
+        </div>
+        <div class="field">
+          <label for="epss_weight">{{ t.get("prio-epss") }}</label>
+          <input class="num-sm" id="epss_weight" name="epss_weight" type="text" inputmode="decimal" maxlength="5" value="{{ form.epss_weight }}">
+          <span class="help">{{ t.get1("prio-epss-hint", "default", defaults.epss_weight.as_str()) }}</span>
+        </div>
+        <div class="field">
+          <label for="kev_floor">{{ t.get("prio-kev") }}</label>
+          <input class="num-sm" id="kev_floor" name="kev_floor" type="text" inputmode="numeric" maxlength="3" value="{{ form.kev_floor }}">
+          <span class="help">{{ t.get1("prio-kev-hint", "default", defaults.kev_floor.as_str()) }}</span>
+        </div>
+        <fieldset class="field opts">
+          <legend class="label">{{ t.get("prio-penalties") }}</legend>
+          <div class="check-num">
+            <label for="penalty_medium">{{ t.get("prio-medium") }}</label>
+            <input class="num-sm" id="penalty_medium" name="penalty_medium" type="text" inputmode="numeric" maxlength="3" value="{{ form.penalty_medium }}">
+          </div>
+          <div class="check-num">
+            <label for="penalty_low">{{ t.get("prio-low") }}</label>
+            <input class="num-sm" id="penalty_low" name="penalty_low" type="text" inputmode="numeric" maxlength="3" value="{{ form.penalty_low }}">
+          </div>
+          <span class="help">{{ t.get2("prio-penalties-hint", "medium", defaults.penalty_medium.as_str(), "low", defaults.penalty_low.as_str()) }}</span>
+        </fieldset>
+        <fieldset class="field opts">
+          <legend class="label">{{ t.get("prio-ratings") }}</legend>
+          <div class="check-num">
+            <label for="penalty_unimportant">{{ t.get("prio-unimportant") }}</label>
+            <input class="num-sm" id="penalty_unimportant" name="penalty_unimportant" type="text" inputmode="numeric" maxlength="3" value="{{ form.penalty_unimportant }}">
+          </div>
+          <div class="check-num">
+            <label for="penalty_minor">{{ t.get("prio-minor") }}</label>
+            <input class="num-sm" id="penalty_minor" name="penalty_minor" type="text" inputmode="numeric" maxlength="3" value="{{ form.penalty_minor }}">
+          </div>
+          <span class="help">{{ t.get2("prio-ratings-hint", "unimportant", defaults.penalty_unimportant.as_str(), "minor", defaults.penalty_minor.as_str()) }}</span>
+        </fieldset>
+        <p class="notice info"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ t.get("prio-recompute-hint") }}</span></p>
+      </div>
+      <div class="cfoot">
+        <button class="btn" type="submit" name="reset" value="1">{{ t.get("prio-reset") }}</button>
+        <button class="btn primary" type="submit">{{ t.get("save") }}</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <header><h2>{{ t.get("prio-examples") }}</h2></header>
+    <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th>CVSS</th><th>{{ t.get("prio-example-epss") }}</th><th>KEV</th><th>{{ t.get("prio-example-prio") }}</th></tr></thead>
+      <tbody>
+      {% for e in examples %}
+        <tr><td>{{ e.cvss }}</td><td>{{ e.epss }}</td><td>{% if e.kev %}{{ t.get("export-yes") }}{% else %}{{ t.get("export-no") }}{% endif %}</td><td><span class="prio {{ e.band }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ e.band }}"/></svg><span>{{ e.prio }}</span></span></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <header><h2>{{ t.get("prio-bands") }}</h2></header>
+    <div class="cbody">
+      <p class="muted">{{ t.get("prio-bands-hint") }}</p>
+      <ul class="bandlist">
+      {% for b in bands %}
+        <li><span class="prio {{ b.band }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ b.band }}"/></svg><span>{{ b.label }}</span></span> <span class="mono small">{{ b.range }}</span></li>
+      {% endfor %}
+      </ul>
+    </div>
+  </section>
+</div>
+</div>
+{% endblock %}

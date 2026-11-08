@@ -1,0 +1,61 @@
+{#- The triage of one vulnerability in the inbox (`a`: Actions): done, later, ignore, reopen. Plain forms; the
+    menus are <details>, so everything works without JavaScript. `static/inbox.js` binds the keys e, s, i, o. -#}
+<div class="triage">
+  {%- if a.state == "done" || a.state == "ignored" %}
+  <form method="post" action="/inbox" class="btngroup">
+    {% include "triage_hidden.html" %}
+    <span class="state {% if a.state == "done" %}ok{% else %}off{% endif %}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{% if a.state == "done" %}check-circle{% else %}eye-off{% endif %}"/></svg>{{ a.state_text }}</span>
+    <button class="btn sm" type="submit" name="action" value="reopen" data-key="r"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>{{ t.get("triage-reopen") }}</button>
+  </form>
+  {%- else %}
+  <div class="btngroup">
+    <form method="post" action="/inbox" class="inline-form">
+      {% include "triage_hidden.html" %}
+      <button class="btn primary" type="submit" name="action" value="done" data-key="e"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-check"/></svg>{{ t.get("triage-done") }} <kbd>e</kbd></button>
+    </form>
+    <details class="act" data-key="s">
+      <summary class="btn"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-clock"/></svg>{{ t.get("triage-later") }} <kbd>s</kbd></summary>
+      <form method="post" action="/inbox" class="menu-pop">
+        {% include "triage_hidden.html" %}
+        <input type="hidden" name="action" value="later">
+        <button type="submit" name="days" value="1">{{ t.get("triage-later-1") }}</button>
+        <button type="submit" name="days" value="7">{{ t.get("triage-later-7") }}</button>
+        <button type="submit" name="days" value="30">{{ t.get("triage-later-30") }}</button>
+      </form>
+    </details>
+    <details class="act" data-key="i">
+      <summary class="btn"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-eye-off"/></svg>{{ t.get("triage-ignore") }} <kbd>i</kbd></summary>
+      <form method="post" action="/inbox" class="menu-pop ignore">
+        {% include "triage_hidden.html" %}
+        <input type="hidden" name="action" value="ignore">
+        <div class="field">
+          <label for="ignReason">{{ t.get("triage-reason") }}</label>
+          <select id="ignReason" name="reason">
+            {%- for (key, label) in a.reasons %}
+            <option value="{{ key }}">{{ label }}</option>
+            {%- endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="ignNote">{{ t.get("triage-note") }}</label>
+          <textarea id="ignNote" name="note" rows="2" maxlength="1000"></textarea>
+        </div>
+        {%- if !a.choices.is_empty() %}
+        <fieldset class="field">
+          <legend>{{ t.get("triage-for") }}</legend>
+          {%- for (id, label) in a.choices %}
+          <label class="check"><input type="checkbox" name="id" value="{{ id }}" checked> {{ label }}</label>
+          {%- endfor %}
+        </fieldset>
+        {%- endif %}
+        <p class="small muted">{{ t.get("triage-ignore-help") }}</p>
+        <button class="btn primary" type="submit">{{ t.get("triage-ignore-ok") }}</button>
+      </form>
+    </details>
+    <a class="btn ghost" href="{{ a.source_href }}" target="_blank" rel="noopener noreferrer" data-key="o" aria-label="{{ t.get("triage-open-source") }}" title="{{ t.get("triage-open-source") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-external"/></svg><kbd>o</kbd></a>
+  </div>
+  {%- if a.state == "later" %}
+  <p class="small muted later"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-clock"/></svg> {{ a.state_text }}</p>
+  {%- endif %}
+  {%- endif %}
+</div>

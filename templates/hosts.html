@@ -1,0 +1,66 @@
+{#- Hosts whose packages are read over SSH. Names, systems and error texts come from the user or the host and are
+    escaped. -#}
+{% extends "app.html" %}
+{% block title %}{{ t.get("hosts-title") }} – opensecmon{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ t.get("assets-title") }}</h1>
+    <p>{{ t.get("assets-subtitle") }}</p>
+  </div>
+</div>
+<div class="split">
+{% include "asset_tabs.html" %}
+<div class="stack">
+{% include "flash.html" %}
+<div class="card">
+  <header><h2>{{ t.get("hosts-title") }}</h2><a class="btn sm" href="/assets/hosts/new"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>{{ t.get("hosts-add") }}</a></header>
+  {%- if hosts.is_empty() %}
+  <div class="empty">
+    <div>
+      <svg class="ico xl neutral" aria-hidden="true" focusable="false"><use href="#i-terminal"/></svg>
+      <h2>{{ t.get("hosts-none-title") }}</h2>
+      <p>{{ t.get("hosts-none-text") }}</p>
+    </div>
+  </div>
+  {%- else %}
+  <div class="tblwrap">
+    <table class="tbl hosts">
+      <thead><tr><th>{{ t.get("hosts-col-name") }}</th><th class="hide-sm">{{ t.get("hosts-col-address") }}</th><th>{{ t.get("hosts-col-system") }}</th><th class="num">{{ t.get("hosts-col-packages") }}</th><th class="hide-sm">{{ t.get("hosts-col-last") }}</th><th>{{ t.get("hosts-col-state") }}</th><th></th></tr></thead>
+      <tbody>
+      {%- for h in hosts %}
+        <tr>
+          <td><a href="/assets/hosts/{{ h.id }}/edit"><b>{{ h.name }}</b></a></td>
+          <td class="mono small hide-sm">{{ h.address }}</td>
+          <td class="small">{% if h.system.is_empty() %}<span class="muted">–</span>{% else %}{{ h.system }}{% endif %}{%- if let Some(k) = h.kernel %}<div class="small{% if !k.reboot %} muted{% endif %}">{% if k.reboot %}<span class="state warn"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg>{{ k.text }}</span>{% else %}{{ k.text }}{% endif %}</div>{% endif %}</td>
+          <td class="num">{% if h.packages > 0 %}<a href="/assets?host={{ h.name|urlencode }}">{{ h.packages }}</a>{% if !h.affected.is_empty() %}<div class="small"><a class="sev high" href="/assets?host={{ h.name|urlencode }}&amp;open=1">{{ h.affected }}</a></div>{% endif %}{% else %}<span class="muted">–</span>{% endif %}{% if !h.unassigned.is_empty() %}<div class="small"><a href="/assets/unassigned">{{ h.unassigned }}</a></div>{% endif %}</td>
+          <td class="small hide-sm">{% if let Some(l) = h.last %}{{ l|safe }}{% else %}<span class="muted">–</span>{% endif %}{% if let Some(n) = h.next %}<div class="muted">{{ t.get("hosts-next") }} {{ n|safe }}</div>{% endif %}</td>
+          <td><span class="state {{ h.state }}"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-{{ h.icon }}"/></svg>{{ h.state_text }}</span>{% if !h.detail.is_empty() %}<div class="small muted hosterr">{{ h.detail }}</div>{% endif %}</td>
+          <td class="nowrap">
+            {%- if h.setup %}
+            <a class="btn sm" href="/assets/hosts/{{ h.id }}/setup">{{ t.get("hosts-continue") }}<svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-chev-right"/></svg></a>
+            {%- else if h.state != "off" %}
+            <form class="inline-form" method="post" action="/assets/hosts/{{ h.id }}/run">
+              <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+              <button class="btn sm ghost" type="submit" data-busy><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>{{ t.get("hosts-run") }}</button>
+            </form>
+            {%- endif %}
+          </td>
+        </tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+  {%- endif %}
+  <div class="cbody small muted">{{ t.get("hosts-footer") }}</div>
+</div>
+<details class="card">
+  <summary class="cbody"><b>{{ t.get("hosts-own-key") }}</b></summary>
+  <div class="cbody">
+    <p class="small muted">{{ t.get("hosts-own-key-text") }}</p>
+    <div class="codebox" data-copy-box>{{ public_line }}</div>
+  </div>
+</details>
+</div>
+</div>
+{% endblock %}

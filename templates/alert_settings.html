@@ -1,0 +1,74 @@
+{% extends "app.html" %}
+{% block title %}{{ t.get("settings-alerts") }} – opensecmon{% endblock %}
+{% block content %}
+{% let section = "alerts" %}
+<div class="pagehead"><div><h1>{{ t.get("nav-settings") }}</h1></div></div>
+<div class="split settings">
+{% include "settings_nav.html" %}
+<div class="stack">
+  {% include "flash.html" %}
+  {% if !mail_enabled %}
+  <p class="notice warn" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ t.get("alerts-mail-off") }} <a href="/settings/mail">{{ t.get("alerts-mail-settings") }}</a></span></p>
+  {% endif %}
+
+  <section class="card">
+    <header><h2>{{ t.get("alerts-title") }}</h2></header>
+    <form method="post" action="/settings/alerts">
+      <div class="cbody">
+        <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+        <p class="muted">{{ t.get("alerts-subtitle") }}</p>
+        <div class="field">
+          <label class="switch"><input type="checkbox" name="instant" value="on"{% if form.instant %} checked{% endif %}> {{ t.get("alerts-enabled") }}</label>
+        </div>
+        <fieldset class="field opts">
+          <legend class="label">{{ t.get("alerts-conditions") }}</legend>
+          <label class="check"><input type="checkbox" name="on_kev" value="on"{% if form.on_kev %} checked{% endif %}> {{ t.get("alerts-on-kev") }}</label>
+          <div class="check-num">
+            <label class="check" for="prio_on"><input type="checkbox" id="prio_on" name="prio_on" value="on"{% if form.prio_on %} checked{% endif %}> {{ t.get("alerts-prio") }}</label>
+            <input class="num-sm" type="text" inputmode="numeric" name="prio_min" value="{{ form.prio_min }}" maxlength="3" aria-label="{{ t.get("alerts-prio") }}">
+          </div>
+          <div class="check-num">
+            <label class="check" for="cvss_on"><input type="checkbox" id="cvss_on" name="cvss_on" value="on"{% if form.cvss_on %} checked{% endif %}> {{ t.get("alerts-cvss") }}</label>
+            <input class="num-sm" type="text" inputmode="decimal" name="cvss_min" value="{{ form.cvss_min }}" maxlength="5" aria-label="{{ t.get("alerts-cvss") }}">
+          </div>
+          <div class="check-num">
+            <label class="check" for="epss_on"><input type="checkbox" id="epss_on" name="epss_on" value="on"{% if form.epss_on %} checked{% endif %}> {{ t.get("alerts-epss") }}</label>
+            <input class="num-sm" type="text" inputmode="decimal" name="epss_min" value="{{ form.epss_min }}" maxlength="5" aria-label="{{ t.get("alerts-epss") }}">
+          </div>
+        </fieldset>
+        <div class="field">
+          <label for="min_confidence">{{ t.get("alerts-confidence") }}</label>
+          <select id="min_confidence" name="min_confidence">
+            {% for option in confidences %}
+            <option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+          <span class="help">{{ t.get("alerts-confidence-hint") }}</span>
+        </div>
+        <fieldset class="field opts">
+          <legend class="label">{{ t.get("alerts-grouping") }}</legend>
+          <label class="check"><input type="checkbox" name="bundle" value="on"{% if form.bundle %} checked{% endif %}> {{ t.get("alerts-bundle") }}</label>
+          <label class="check"><input type="checkbox" name="once_per_vuln" value="on"{% if form.once_per_vuln %} checked{% endif %}> {{ t.get("alerts-once") }}</label>
+        </fieldset>
+        <div class="field">
+          <label for="public_url">{{ t.get("alerts-public-url") }}</label>
+          <input id="public_url" name="public_url" type="text" value="{{ form.public_url }}" maxlength="200" autocapitalize="off" spellcheck="false" placeholder="{{ url_example }}">
+          <span class="help">{{ t.get1("alerts-public-url-hint", "example", url_example.as_str()) }}</span>
+        </div>
+        <p class="notice info"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span>{{ t.get("alerts-known-hint") }}</span></p>
+      </div>
+      <div class="cfoot"><button class="btn primary" type="submit">{{ t.get("save") }}</button></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <header><h2>{{ t.get("alerts-status") }}</h2></header>
+    <div class="cbody stack small">
+      {% if let Some(last) = last %}<p>{{ t.get1("alerts-last", "time", "") }}{{ last|safe }}</p>{% else %}<p class="muted">{{ t.get("alerts-last-never") }}</p>{% endif %}
+      {% if waiting > 0 %}<p>{{ t.get1("alerts-waiting", "count", waiting) }}</p>{% endif %}
+      {% if let Some(retry) = retry %}<p class="notice warn"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ t.get1("alerts-retry", "time", "") }}{{ retry|safe }}</span></p>{% endif %}
+    </div>
+  </section>
+</div>
+</div>
+{% endblock %}

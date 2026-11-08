@@ -1,0 +1,60 @@
+{% extends "app.html" %}
+{% block title %}{{ t.get("settings-account") }} – opensecmon{% endblock %}
+{% block content %}
+{% let section = "account" %}
+<div class="pagehead"><div><h1>{{ t.get("nav-settings") }}</h1></div></div>
+<div class="split settings">
+{% include "settings_nav.html" %}
+<div class="stack">
+  {% include "flash.html" %}
+  <section class="card">
+    <header><h2>{{ t.get("settings-account") }}</h2></header>
+    <div class="cbody">
+      <div class="field">
+        <label for="name">{{ t.get("username") }}</label>
+        <input id="name" type="text" value="{{ layout.username }}" disabled>
+        <span class="help">{{ t.get("account-name-hint") }}</span>
+      </div>
+      <form method="post" action="/settings/account/language" class="field">
+        <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+        <label for="language">{{ t.get("language") }}</label>
+        <div class="inline-form">
+          <select id="language" name="language">
+            {% for option in languages %}
+            <option value="{{ option.code }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn" type="submit">{{ t.get("save") }}</button>
+        </div>
+        <span class="help">{{ t.get("account-language-hint") }}</span>
+      </form>
+    </div>
+  </section>
+
+  <section class="card">
+    <header><h2>{{ t.get("account-password-title") }}</h2></header>
+    <form method="post" action="/settings/account/password">
+      <div class="cbody">
+        <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+        <div class="field">
+          <label for="current">{{ t.get("account-current-password") }}</label>
+          <input id="current" name="current" type="password" required maxlength="128" autocomplete="current-password">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="password">{{ t.get("password-new") }}</label>
+            <input id="password" name="password" type="password" required minlength="10" maxlength="128" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label for="password_repeat">{{ t.get("password-new-repeat") }}</label>
+            <input id="password_repeat" name="password_repeat" type="password" required minlength="10" maxlength="128" autocomplete="new-password">
+          </div>
+        </div>
+        <p class="help small muted">{{ t.get("account-password-hint") }}</p>
+      </div>
+      <div class="cfoot"><button class="btn primary" type="submit">{{ t.get("account-password-title") }}</button></div>
+    </form>
+  </section>
+</div>
+</div>
+{% endblock %}

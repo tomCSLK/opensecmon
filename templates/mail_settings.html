@@ -1,0 +1,111 @@
+{% extends "app.html" %}
+{% block title %}{{ t.get("settings-mail") }} – opensecmon{% endblock %}
+{% block content %}
+{% let section = "mail" %}
+<div class="pagehead"><div><h1>{{ t.get("nav-settings") }}</h1></div></div>
+<div class="split settings">
+{% include "settings_nav.html" %}
+<div class="stack">
+  {% include "flash.html" %}
+  {% if let Some(message) = test_ok %}
+  <p class="notice good" role="status"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-check-circle"/></svg><span>{{ message }}</span></p>
+  {% endif %}
+  {% if let Some(message) = test_error %}
+  <p class="notice bad" role="alert"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg><span>{{ message }}</span></p>
+  {% endif %}
+
+  <section class="card">
+    <header><h2>{{ t.get("mail-title") }}</h2></header>
+    <form method="post" action="/settings/mail">
+      <div class="cbody">
+        <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+        <p class="muted">{{ t.get("mail-subtitle") }}</p>
+        <div class="field">
+          <label class="switch"><input type="checkbox" name="enabled" value="on"{% if form.enabled %} checked{% endif %}> {{ t.get("mail-enabled") }}</label>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="host">{{ t.get("mail-host") }}</label>
+            <input id="host" name="host" type="text" value="{{ form.host }}" maxlength="253" autocapitalize="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="port">{{ t.get("mail-port") }}</label>
+            <input id="port" name="port" type="number" min="1" max="65535" value="{{ form.port }}" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="security">{{ t.get("mail-security") }}</label>
+          <select id="security" name="security">
+            {% for option in securities %}
+            <option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+          <span class="help">{{ t.get("mail-port-hint") }}</span>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="username">{{ t.get("username") }}</label>
+            <input id="username" name="username" type="text" value="{{ form.username }}" maxlength="256" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="{{ t.get("mail-username-placeholder") }}">
+          </div>
+          <div class="field">
+            <label for="password">{{ t.get("password") }}</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" maxlength="256"
+              placeholder="{% if form.password_set %}{{ t.get("mail-password-keep") }}{% else %}{{ t.get("mail-not-set") }}{% endif %}">
+            <span class="help">{{ t.get("mail-password-hint") }}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="from_address">{{ t.get("mail-from") }}</label>
+          <input id="from_address" name="from_address" type="text" value="{{ form.from_address }}" maxlength="256" autocapitalize="off" spellcheck="false" placeholder="opensecmon@example.org">
+        </div>
+        <div class="field">
+          <label for="recipients">{{ t.get("mail-recipients") }}</label>
+          <textarea id="recipients" name="recipients" rows="3" maxlength="5000" spellcheck="false">{{ form.recipients }}</textarea>
+          <span class="help">{{ t.get("mail-recipients-hint") }}</span>
+        </div>
+        <div class="field">
+          <label for="language">{{ t.get("mail-language") }}</label>
+          <select id="language" name="language">
+            {% for option in languages %}
+            <option value="{{ option.code }}"{% if option.selected %} selected{% endif %}>{{ option.name }}</option>
+            {% endfor %}
+          </select>
+          <span class="help">{{ t.get("mail-language-hint") }}</span>
+        </div>
+      </div>
+      <div class="cfoot"><button class="btn primary" type="submit">{{ t.get("save") }}</button></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <header><h2>{{ t.get("mail-send-test") }}</h2></header>
+    <form method="post" action="/settings/mail/test" class="cbody inline-form">
+      <input type="hidden" name="csrf_token" value="{{ layout.csrf_token }}">
+      <button class="btn" type="submit"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-mail"/></svg>{{ t.get("mail-send-test") }}</button>
+      <span class="muted small">{{ t.get("mail-test-hint") }}</span>
+    </form>
+  </section>
+
+  <section class="card">
+    <header><h2>{{ t.get("mail-log") }}</h2></header>
+    {% if log.is_empty() %}
+    <p class="cbody muted">{{ t.get("mail-log-empty") }}</p>
+    {% else %}
+    <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th>{{ t.get("mail-log-when") }}</th><th>{{ t.get("mail-log-kind") }}</th><th>{{ t.get("mail-log-subject") }}</th><th>{{ t.get("mail-log-recipients") }}</th><th>{{ t.get("mail-log-result") }}</th></tr></thead>
+      <tbody>
+      {% for row in log %}
+        <tr>
+          <td class="nowrap mono small">{{ row.at|safe }}</td><td>{{ row.kind }}</td><td>{{ row.subject }}</td><td class="muted">{{ row.recipients }}</td>
+          <td>{% if row.ok %}<span class="badge good">{{ t.get("mail-sent") }}</span>{% else %}<span class="badge bad">{{ t.get("mail-failed") }}</span> <span class="muted small">{{ row.error }}</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endif %}
+  </section>
+</div>
+</div>
+{% endblock %}

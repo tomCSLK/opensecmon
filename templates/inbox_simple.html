@@ -1,0 +1,25 @@
+{#- The detail of a vulnerability without its own record here (an OSV entry such as a USN): what the matches
+    know (`d`: SimpleDetail). Titles come from the sources and are escaped. -#}
+<div class="dhead">
+  <a class="btn ghost back" href="{{ d.back_href }}" data-sheet-close><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg>{{ t.get("cve-back") }}</a>
+  <div class="badges">
+    <span class="prio big {{ d.band }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-{{ d.band }}"/></svg><span>{{ d.prio }}</span></span>
+    <span class="ids">{{ d.label }}</span>
+  </div>
+  <h1>{% if d.title.is_empty() %}{{ d.label }}{% else %}{{ d.title }}{% endif %}</h1>
+  {%- if let Some(own) = d.own %}{% if let Some(a) = own.actions %}
+  {% include "triage_actions.html" %}
+  {%- endif %}{% endif %}
+</div>
+<div class="dbody">
+  {%- if let Some(own) = d.own %}
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-affected") }}</h3>
+    {% include "own_box.html" %}
+  </div>
+  {%- endif %}
+  <div class="dsec">
+    <h3>{{ t.get("cve-section-sources") }}</h3>
+    <p><a href="{{ d.link }}" target="_blank" rel="noopener noreferrer">{{ d.label }} <svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-external"/></svg></a></p>
+  </div>
+</div>
