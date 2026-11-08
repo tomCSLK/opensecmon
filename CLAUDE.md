@@ -18,8 +18,8 @@ und aus opennetmon). Bei Treffern kommt sofort eine Mail, dazu ein Tagesbericht.
 
 **Stand (2026-11-08):** Phasen 0–8 erledigt, aus Phase 9 Sicherheitstest, Betriebsanleitung `docs/operations.md`
 und eingebautes HTTPS; Vorhaben „Rauschen im Betrieb“ abgeschlossen; Desktop-Agent: Schnittstelle `docs/agent-api.md`,
-Skripte in `contrib/` und Vorbereitung für das eigene Programm opensecagent (Schritt 7). Version 0.3.5. Offen: erstes
-Release (nur auf Ansage). Einzelheiten, Messwerte und Abweichungen vom Entwurf in `PLAN.md`; Betriebsdaten der eigenen
+Skripte in `contrib/` und Vorbereitung für das eigene Programm opensecagent (Schritt 7). Version 0.3.5, **öffentlich und als erstes Release
+v0.3.5 veröffentlicht** (2026-11-08). Weitere Releases nur auf Ansage. Einzelheiten, Messwerte und Abweichungen vom Entwurf in `PLAN.md`; Betriebsdaten der eigenen
 Installation nur in `CLAUDE.local.md` und `PLAN.local.md` (gitignored).
 
 ## Arbeitsregeln
