@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-11-08
+
+First public release. Everything below was developed before it; versions 0.1.0 to 0.3.4 were test packages only.
+
 ### Added
 
 - Security policy (`SECURITY.md`) and contribution guide (`CONTRIBUTING.md`); the README describes the program as it is.
