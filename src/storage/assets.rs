@@ -464,6 +464,28 @@ pub async fn all(pool: &SqlitePool) -> Result<Vec<Asset>> {
     .await?)
 }
 
+/// The assets with these (vendor, product) keys, for the operating systems in the CVE detail (a CVE of
+/// Microsoft names up to some 40 Windows versions; the assets of a vendor are few).
+pub async fn of_products(pool: &SqlitePool, keys: &[(String, String)]) -> Result<Vec<Asset>> {
+    let mut vendors: Vec<&str> = keys.iter().map(|(v, _)| v.as_str()).collect();
+    vendors.sort_unstable();
+    vendors.dedup();
+    let mut out = Vec::new();
+    for vendor in vendors {
+        let rows: Vec<Asset> = sqlx::query_as(
+            "SELECT * FROM assets WHERE vendor = ? ORDER BY host = '', host COLLATE NOCASE, id",
+        )
+        .bind(vendor)
+        .fetch_all(pool)
+        .await?;
+        out.extend(
+            rows.into_iter()
+                .filter(|a| keys.iter().any(|(v, p)| *v == a.vendor && *p == a.product)),
+        );
+    }
+    Ok(out)
+}
+
 /// The host names in use, for the form.
 pub async fn hosts(pool: &SqlitePool) -> Result<Vec<String>> {
     Ok(sqlx::query_scalar(

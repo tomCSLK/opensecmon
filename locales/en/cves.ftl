@@ -56,6 +56,7 @@ cve-kev-ransomware = Known use by ransomware.
 cve-kev-action = Action according to CISA:
 cve-section-affected = Affects
 cve-no-assets = No own assets affected. Affected according to the record:
+cve-no-own-assets = No own assets affected.
 cve-record-affected = Affected according to the record:
 cve-all-versions = all versions
 cve-section-rating = Rating

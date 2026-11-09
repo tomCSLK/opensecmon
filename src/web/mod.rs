@@ -21,6 +21,7 @@ pub mod inbox;
 pub mod mail_settings;
 pub mod onm_import;
 mod origin;
+mod os_view;
 pub mod pages;
 pub mod prio_settings;
 pub mod retention;

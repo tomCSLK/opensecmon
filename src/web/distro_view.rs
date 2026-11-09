@@ -1,4 +1,4 @@
-//! The section "Distributions" of the CVE detail: what Debian and Ubuntu say about the CVE, one row per
+//! Debian and Ubuntu in the section "Operating systems" of the CVE detail: what they say about the CVE, one row per
 //! release and source package, built from the OSV records and the Debian Security Tracker.
 
 use std::collections::BTreeMap;
@@ -22,6 +22,8 @@ pub struct DistroView {
     /// The distribution's page about the CVE.
     pub link: String,
     pub link_label: String,
+    /// Notes of the vendor for the whole group (Apple's security notes); empty for Debian and Ubuntu.
+    pub refs: Vec<AdvisoryRef>,
     pub rows: Vec<DistroRow>,
     /// "12 more entries …", empty when all rows are shown.
     pub more: String,
@@ -39,6 +41,19 @@ pub struct DistroRow {
     /// Urgency and notes (no DSA planned …), joined.
     pub note: String,
     pub advisories: Vec<AdvisoryRef>,
+    /// Own assets of this system version (Windows, Apple, Android) and what the matching says about them.
+    pub own: Vec<OwnMark>,
+}
+
+/// An own asset at a row of the operating systems.
+#[derive(Debug, Clone, PartialEq)]
+pub struct OwnMark {
+    pub name: String,
+    pub href: String,
+    pub version: String,
+    /// `state` class: err (affected), warn (affected, version not checkable), ok (not affected).
+    pub class: &'static str,
+    pub state: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -155,6 +170,7 @@ pub fn build(
             version,
             note: notes.join(" · "),
             advisories: acc.advisories,
+            own: Vec::new(),
         };
         let key = sort_key(&acc.ecosystem, &acc.release);
         if source == "debian" {
@@ -196,6 +212,7 @@ pub fn build(
                 version: String::new(),
                 note: notes.join(" · "),
                 advisories: Vec::new(),
+                own: Vec::new(),
             },
         ));
     }
@@ -230,6 +247,7 @@ pub fn build(
             },
             link,
             link_label: t.get(label),
+            refs: Vec::new(),
             rows: rows.into_iter().map(|(_, r)| r).collect(),
             more: if hidden > 0 {
                 t.get1("distro-more", "count", t.number(hidden as i64))

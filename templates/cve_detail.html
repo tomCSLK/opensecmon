@@ -25,6 +25,8 @@
     {%- if !d.affected.is_empty() %}
     <p class="muted small">{{ t.get("cve-record-affected") }}</p>
     {%- endif %}
+    {%- else if d.affected.is_empty() %}
+    <p class="muted small">{{ t.get("cve-no-own-assets") }}</p>
     {%- else %}
     <p class="muted small">{{ t.get("cve-no-assets") }}</p>
     {%- endif %}
@@ -53,13 +55,19 @@
         {%- if !g.priority.is_empty() %} <span class="tag">{{ t.get("distro-priority") }} {{ g.priority }}</span>{% endif %}
         <a class="small" href="{{ g.link }}" target="_blank" rel="noopener noreferrer">{{ g.link_label }}<svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-external"/></svg></a>
       </div>
+      {%- if !g.refs.is_empty() %}
+      <p class="small muted">{{ t.get("os-notes") }} {% for a in g.refs %}<a class="mono" href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.id }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</p>
+      {%- endif %}
       <ul class="affected">
         {%- for r in g.rows %}
         <li>
-          <div class="a1"><b>{{ r.release }}</b><span class="tag mono">{{ r.package }}</span><span class="state {{ r.class }}">{{ r.state }}{% if !r.version.is_empty() %} <span class="mono">{{ r.version }}</span>{% endif %}</span></div>
+          <div class="a1"><b>{{ r.release }}</b>{% if !r.package.is_empty() %}<span class="tag mono">{{ r.package }}</span>{% endif %}<span class="state {{ r.class }}">{{ r.state }}{% if !r.version.is_empty() %} <span class="mono">{{ r.version }}</span>{% endif %}</span></div>
           {%- if !r.note.is_empty() || !r.advisories.is_empty() %}
           <div class="a3">{{ r.note }}{% if !r.note.is_empty() && !r.advisories.is_empty() %} · {% endif %}{% for a in r.advisories %}<a class="mono" href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.id }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</div>
           {%- endif %}
+          {%- for o in r.own %}
+          <div class="a3 ownsys"><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-server"/></svg><a href="{{ o.href }}">{{ o.name }}</a>{% if !o.version.is_empty() %} <span class="mono">{{ o.version }}</span>{% endif %}<span class="state {{ o.class }}">{{ o.state }}</span></div>
+          {%- endfor %}
         </li>
         {%- endfor %}
       </ul>

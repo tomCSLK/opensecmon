@@ -18,6 +18,7 @@ use crate::storage::cve_list::{
 use crate::storage::{advisory_list, distros};
 use crate::web::auth::CurrentUser;
 use crate::web::distro_view::{self, DistroView};
+use crate::web::os_view;
 use crate::web::{AppState, Layout};
 
 /// The query string of the list. Every value is text and parsed leniently: a broken link shows the list
@@ -581,7 +582,8 @@ pub(crate) async fn detail_view_for(
 ) -> Result<DetailView> {
     let id = d.record.id.clone();
     let advisories = advisory_list::for_cve(pool, &id).await?;
-    let distros = distros_of(pool, t, &id).await?;
+    let mut distros = distros_of(pool, t, &id).await?;
+    distros.extend(systems_of(pool, t, &id, &d.record.affected, &d.record.refs).await?);
     let weights = crate::storage::prio::load(pool).await?;
     Ok(detail_view(
         t, d, advisories, distros, back_href, standalone, &weights,
@@ -895,6 +897,8 @@ fn affected_view(t: Lang, json: &str) -> Vec<AffectedView> {
     };
     items
         .iter()
+        // Windows, Apple and Android are in the section "Operating systems".
+        .filter(|a| !os_view::is_os_entry(a))
         .take(30)
         .filter_map(|a| {
             let vendor = s(a, "vendor");
@@ -998,7 +1002,39 @@ fn provider_label(t: Lang, provider: &str) -> String {
     }
 }
 
-/// The section "Distributions" of a CVE.
+/// Windows, Apple and Android in the section "Operating systems", with the own assets of these systems.
+async fn systems_of(
+    pool: &sqlx::SqlitePool,
+    t: Lang,
+    cve_id: &str,
+    affected: &str,
+    refs: &str,
+) -> crate::error::Result<Vec<DistroView>> {
+    let affected: Value = serde_json::from_str(affected).unwrap_or_default();
+    let keys = os_view::product_keys(&affected);
+    if keys.is_empty() {
+        return Ok(Vec::new());
+    }
+    let refs: Value = serde_json::from_str(refs).unwrap_or_default();
+    let own: Vec<os_view::OwnSystem> = crate::storage::assets::of_products(pool, &keys)
+        .await?
+        .into_iter()
+        .map(|a| os_view::OwnSystem {
+            id: a.id,
+            name: if a.host.is_empty() {
+                a.product_name
+            } else {
+                a.host
+            },
+            vendor: a.vendor,
+            product: a.product,
+            version: a.version,
+        })
+        .collect();
+    Ok(os_view::build(t, cve_id, &affected, &refs, &own))
+}
+
+/// Debian and Ubuntu in the section "Operating systems" of a CVE.
 async fn distros_of(
     pool: &sqlx::SqlitePool,
     t: Lang,
@@ -1258,7 +1294,7 @@ fn pick_bsi<'a>(
 /// "cves-empty-db-title" "cves-empty-db-text" "cves-empty-title" "cves-empty-text" "cves-unknown-id"
 /// "cves-per-page" "cves-detail" "cves-detail-empty" "cve-back" "cve-rejected" "cve-kev-title"
 /// "cve-kev-since" "cve-kev-due" "cve-kev-due-passed" "cve-kev-ransomware" "cve-kev-action" "cve-section-affected"
-/// "cve-no-assets" "cve-section-rating" "cve-epss-label" "cve-percentile" "cve-prio-label" "cve-no-score"
+/// "cve-no-assets" "cve-no-own-assets" "cve-section-rating" "cve-epss-label" "cve-percentile" "cve-prio-label" "cve-no-score"
 /// "cve-formula-title" "cve-formula-sum" "cve-section-description" "cve-published" "cve-updated" "cve-assigner"
 /// "cve-nvd-status" "cve-section-metrics" "cve-section-products" "cve-section-sources" "cve-section-refs"
 /// "cve-open-source" "cve-score-source" "cve-products-vendor-help" "band-crit" "band-high" "band-med"
@@ -1309,7 +1345,7 @@ mod tests {
         let page = send(&h.app, get("/cves/CVE-2026-33416", Some(&session))).await;
         assert_eq!(page.status, StatusCode::OK);
         let body = &page.body;
-        assert!(body.contains("Distributionen"), "{body}");
+        assert!(body.contains("<h3>Betriebssysteme</h3>"), "{body}");
         assert!(body.contains("12 (bookworm)"));
         assert!(body.contains("1.6.39-2+deb12u4"));
         assert!(body.contains("https://security-tracker.debian.org/tracker/DSA-6189-1"));
@@ -1535,6 +1571,52 @@ mod tests {
         list[1].lang = "en-US".into();
         list[0].summary = " ".into();
         assert!(pick_bsi(&list, &names).is_none());
+    }
+
+    #[tokio::test]
+    async fn windows_versions_are_shown_as_operating_systems_with_the_own_computers() {
+        let h = harness(true).await;
+        let (session, _) = login(&h, "anna").await;
+        let affected = r#"[
+            {"vendor": "Microsoft", "product": "Windows 11 Version 24H2", "platforms": ["x64-based Systems"],
+             "versions": [{"version": "10.0.26100.0", "less_than": "10.0.26100.9711", "status": "affected"}]},
+            {"vendor": "Microsoft", "product": "Windows Server 2025 (Server Core installation)",
+             "versions": [{"version": "10.0.26100.0", "less_than": "10.0.26100.9711", "status": "affected"}]},
+            {"vendor": "Microsoft", "product": "Windows Admin Center",
+             "versions": [{"version": "1.0", "less_than": "2.0", "status": "affected"}]}]"#;
+        sqlx::query(
+            "INSERT INTO cves (id, state, title, description, published_ms, affected)
+             VALUES ('CVE-2026-70001', 'published', 'Windows flaw', 'Elevation of privilege.', 1, ?)",
+        )
+        .bind(affected)
+        .execute(&h.state.pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO assets (kind, vendor, product, vendor_name, product_name, version, host, origin,
+                                 created_ms, updated_ms)
+             VALUES ('software', 'microsoft', 'windows11version24h2', 'Microsoft', 'Windows 11 Version 24H2',
+                     '10.0.26100.9000', 'office-pc', 'agent', 1, 1)",
+        )
+        .execute(&h.state.pool)
+        .await
+        .unwrap();
+
+        let page = send(&h.app, get("/cves/CVE-2026-70001", Some(&session))).await;
+        assert_eq!(page.status, StatusCode::OK);
+        let body = &page.body;
+        assert!(body.contains("<h3>Betriebssysteme</h3>"), "{body}");
+        assert!(body.contains("<b>Windows 11 Version 24H2</b>"));
+        assert!(body.contains("<b>Windows Server 2025</b>"));
+        assert!(body.contains("auch Server Core"));
+        assert!(body.contains("update-guide/vulnerability/CVE-2026-70001"));
+        // The own computer at its version, linked to its asset.
+        assert!(body.contains(">office-pc</a>"));
+        assert!(body.contains("<span class=\"state err\">betroffen</span>"));
+        // Windows is no longer in the raw list; the other product of Microsoft is.
+        let raw = &body[..body.find("<h3>Betriebssysteme</h3>").unwrap()];
+        assert!(!raw.contains("Windows 11 Version 24H2"));
+        assert!(raw.contains("Microsoft Windows Admin Center"));
     }
 
     #[tokio::test]

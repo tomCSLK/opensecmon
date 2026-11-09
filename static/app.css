@@ -682,12 +682,16 @@ fieldset.field label.check { display: flex; gap: var(--sp-2); align-items: basel
 .srcs.cvelist .prio { justify-self: start; }
 .field input[type="date"] { width: 12rem; max-width: 100%; }
 
-/* Distributionen im CVE-Detail */
+/* Betriebssysteme im CVE-Detail (Debian, Ubuntu, Windows, Apple, Android) */
 .distro + .distro { margin-top: var(--sp-4); }
 .distro-head { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin: var(--sp-2) 0 var(--sp-1); }
 .distro-head a { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; }
 .distro .affected .a1 .state { margin-left: auto; white-space: normal; text-align: right; }
 .distro .affected .a1 .state .mono { word-break: break-all; }
+/* Eigene Rechner bei ihrer Windows-, Apple- oder Android-Version */
+.distro .affected .ownsys { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.distro .affected .ownsys .state { margin-left: auto; }
+.distro .affected .ownsys .mono { overflow-wrap: anywhere; }
 /* Lange Versionsangaben (Git-Hashes) im Abschnitt „Betrifft“ umbrechen statt die Seite zu verbreitern. */
 .affected .a2 .ver-old, .affected .a2 .ver-fix { white-space: normal; overflow-wrap: anywhere; }
 
