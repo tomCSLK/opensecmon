@@ -35,6 +35,9 @@ network with one or a few administrators.
   flood when switched on), and a daily report at a set time.
 - **Overview:** a situation page (open critical and KEV matches, the last 30 days, most affected hosts, state of the
   sources), searchable lists of all CVEs and advisories with details, CSV export.
+- **Operating systems:** the detail of a CVE shows per release what Debian and Ubuntu say, and for Windows, Apple
+  systems and Android which versions are affected and which build, version or patch level fixes it, with your own
+  computers marked at their version.
 - **German texts:** with the German interface the detail of a CVE shows the German summary of the BSI above the English
   text of the record, where the BSI has an advisory. Chrome on the desktop can also translate the English texts on
   the device (button "Übersetzen"); nothing is sent to a translation service.

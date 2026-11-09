@@ -27,6 +27,7 @@ der eigenen Installation (Rechner, Versionen, Pakete auf dem Server) stehen nich
 | 2026-11-08 | **Prüfung vor dem Öffentlich-Schalten:** keine Geheimnisse in Stand und Historie; Bedingungen der Quellen geprüft (kein Hindernis für ein Programm, das zur Laufzeit abruft; Hinweise im Abschnitt „Offene Punkte“); Betriebsdaten aus dem Plan genommen, Beispieldaten der Entwürfe neutral, README neu, `SECURITY.md` und `CONTRIBUTING.md`. Lizenz AGPL-3.0-or-later bestätigt. Die Historie beginnt mit einem Anfangs-Commit neu; Commit-Nummern in diesem Plan beziehen sich auf die frühere, private Historie. |
 | 2026-11-08 | **Öffentlich und erstes Release v0.3.5** (auf Ansage des Nutzers): `tomCSLK/opensecmon` und `tomCSLK/opensecagent` öffentlich (opensecagent mit, weil das Paket ihn enthält), private Meldung von Sicherheitslücken eingeschaltet; Release mit `dev/release.sh --publish` (Paket `opensecmon_0.3.5-1_amd64.deb` mit opensecagent 0.1.2, SHA-256 `bba6a3f9…`); Release-Notes nennen die Windows-Integration von opensecagent als in Arbeit. |
 | 2026-11-09 | **Deutsche Texte zu CVEs** (Vorhaben unten, Weg 1 und 2): Kurzfassung des BSI über dem englischen Text des CVE-Detail bei deutscher Oberfläche, Knopf „Übersetzen“ mit der Translator API des Browsers (übersetzt auf dem Rechner, nichts geht an fremde Dienste), `lang`-Angaben. 443 Tests. Dazu `cargo deny` mit begründeter Ausnahme für RUSTSEC-2026-0459 (mitgeliefertes SQLite, betrifft nur fremde Datenbankdateien; noch kein sqlx mit der Korrektur). |
+| 2026-11-09 | **Windows, Apple und Android im CVE-Detail** (Vorhaben unten): Abschnitt „Distributionen“ heißt „Betriebssysteme“ und zeigt neben Debian und Ubuntu Windows je Version (Build, Server Core, Architektur), Apple je System und Android je Version mit Patch-Ebene, aus den CNA-Angaben im CVE-Datensatz, mit Links zu den Herstellern; eigene Rechner stehen an ihrer Version mit dem Urteil des Abgleichs. Keine neue Quelle, keine Migration. 452 Tests. |
 
 ## Context
 
@@ -777,7 +778,7 @@ Die Suche bleibt englisch. Englische Texte bekommen `lang="en"`.
 
 Später, nur nach „go“: Kurzfassung des BSI auch in Sofort-Mail und Tagesbericht; Weg 3 als Option.
 
-## Vorhaben: Windows, Apple und Android im CVE-Detail (Wunsch des Nutzers 2026-11-09, Umsetzung nach „go“)
+## Vorhaben: Windows, Apple und Android im CVE-Detail (Wunsch des Nutzers 2026-11-09, „go“ 2026-11-09, umgesetzt)
 
 Anlass: Der Abschnitt „Distributionen“ im CVE-Detail kennt nur Debian und Ubuntu. Der Nutzer möchte dort auch
 Windows, iOS und Android sehen.
@@ -816,8 +817,34 @@ Der Abschnitt heißt künftig **„Betriebssysteme“** und zeigt je System eine
 5. **Eigene Rechner markieren** (optional): Meldet ein Rechner Windows mit Build, steht an der passenden Zeile
    „dein Rechner X: betroffen/behoben“; der Abgleich kennt das schon.
 
-Offen: ob macOS, watchOS, tvOS und visionOS mit sollen (gleiche Daten, kein Mehraufwand) und ob Schritt 5 gleich
-mitkommt.
+Entschieden („go“ 2026-11-09): macOS, watchOS, tvOS und visionOS kommen mit, Schritt 5 ebenfalls.
+
+### Umsetzung (2026-11-09) ✓
+
+- ✓ Neues Modul `src/web/os_view.rs`: erkennt die Einträge der Systeme (Microsoft „Windows …“ ohne Windows Admin
+  Center, Defender und WSL; Apple iOS/iPadOS, macOS, watchOS, tvOS, visionOS ohne Safari usw.; Android von Google,
+  „Google Inc.“, „n/a“ oder „Android“, ohne Apps für Android) und baut daraus Gruppen wie bei Debian und Ubuntu.
+- ✓ Windows: eine Zeile je Version, Server Core und Architektur (x64, ARM64, 32-Bit, Itanium) als Hinweis in derselben
+  Zeile, auch bei älteren Einträgen mit der Version im Versionsfeld („Windows“ + „10 Version 1803 for x64-based
+  Systems“, „Windows 7 for 32-bit Systems Service Pack 1“). Zustand „behoben in <Build>“, „behoben mit dem Update zur
+  Veröffentlichung“ (`less_than: publication`) oder „betroffen“ (ohne Grenze). Reihenfolge: Clients vor Servern,
+  neueste Version zuerst (Version als Zahl, dann Release als Text: 1809 < 1909 < 2004 < 20H2 < 22H2). Link zum
+  Update Guide.
+- ✓ Apple: eine Zeile je System, „behoben in“ mit allen Grenzen (macOS 15.1, 14.7.1, 13.7.1), die Sicherheitsseiten
+  aus den Verweisen als „Hinweise des Herstellers“, Link zur Übersicht der Sicherheitsupdates.
+- ✓ Android: eine Zeile je Version (auch „Android-8.0 Android-9“ in einem Feld), Patch-Ebene aus dem Datum des
+  Bulletins, Hinweis „Pixel-Update“/„Wear-OS-Update“ bei diesen Bulletins, „behoben in Android 10“ bei einem
+  Release-Bulletin, sonst „betroffen“; Link zum Bulletin.
+- ✓ Diese Einträge fehlen jetzt in „Laut Datensatz betroffen“; stehen dort keine anderen, heißt es nur „Keine eigenen
+  Assets betroffen.“ Abschnitt umbenannt in „Betriebssysteme“, höchstens 40 Zeilen je System.
+- ✓ Eigene Rechner: Assets mit Hersteller- und Produktschlüssel eines Eintrags stehen an ihrer Zeile mit dem Urteil
+  des Abgleichs (`matching::cna_verdict`): „betroffen“, „betroffen, Version nicht prüfbar“ oder „nicht betroffen“,
+  verlinkt auf das Asset.
+- ✓ Tests: 8 im Modul, einer für die Seite; mit der Test-DB geprüft (Patchday-CVEs von 2024 und 2026, alte
+  Einträge von 2018/2019, Apple mit mehreren Grenzen, Android mit Patch-Ebene und Wear OS). 452 Tests.
+- Bekannt: Sehr alte Einträge mit anderem Herstellernamen („Microsoft Corporation“, Produkt „Windows SMB“) bleiben
+  roh in „Laut Datensatz betroffen“. „Windows 10 Servers Version 1803“ (Name von 2018) steht unter den Servern
+  zuletzt.
 
 ## Abweichungen vom Entwurf und Entscheidungen der Umsetzung
 

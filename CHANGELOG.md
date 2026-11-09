@@ -16,6 +16,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   or later on the desktop) and nothing is sent to a server; the translation is shown below the original and marked as
   machine-translated.
 - English texts of the CVE records, and the texts of advisories, carry their language (`lang`), for screen readers.
+- The section "Distributions" of the CVE detail is now "Operating systems": beside Debian and Ubuntu it shows Windows
+  (one row per version with the build that fixes it, Server Core and the architectures as notes, link to the
+  Microsoft Update Guide), Apple (iOS and iPadOS, macOS, watchOS, tvOS, visionOS with the versions that fix it and
+  Apple's security notes) and Android (per version, fixed by the patch level of the bulletin), from what the vendors
+  state as CNAs in the CVE record. Own computers with these systems are marked at their version (affected, not
+  affected, or version not checkable). These entries are no longer repeated in "affected according to the record".
 
 ### Security
 
