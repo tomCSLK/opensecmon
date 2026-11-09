@@ -777,6 +777,48 @@ Die Suche bleibt englisch. Englische Texte bekommen `lang="en"`.
 
 Später, nur nach „go“: Kurzfassung des BSI auch in Sofort-Mail und Tagesbericht; Weg 3 als Option.
 
+## Vorhaben: Windows, Apple und Android im CVE-Detail (Wunsch des Nutzers 2026-11-09, Umsetzung nach „go“)
+
+Anlass: Der Abschnitt „Distributionen“ im CVE-Detail kennt nur Debian und Ubuntu. Der Nutzer möchte dort auch
+Windows, iOS und Android sehen.
+
+### Befunde (Test-DB, 2026-11-09)
+
+Die Daten sind schon da, eine neue Quelle braucht es nicht: Microsoft, Apple und Google (Android) sind CNAs und
+schreiben in ihre CVE-Einträge (cvelistV5, Spalte `affected`), welche Versionen betroffen sind.
+
+- **Windows:** 7 767 CVEs mit Windows-Produkten von Microsoft. Je Windows-Version eine Zeile mit Build-Grenze, z. B.
+  „Windows 11 Version 24H2, 10.0.26100.0 bis vor 10.0.26100.9711“, oft doppelt als „(Server Core installation)“. Bei
+  einem Patchday-Eintrag sind das 20 bis 30 Zeilen. KB-Nummern stehen nicht im Eintrag (nur im Update Guide von
+  Microsoft). Die NVD nennt Windows zusätzlich bei 13 629 CVEs anderer Hersteller, meist nur als Plattform (z. B. ein
+  Programm unter Windows); diese Angaben taugen nicht dafür.
+- **Apple:** 4 488 CVEs mit iOS/iPadOS, macOS, watchOS, tvOS oder visionOS, je System „vor 27.2“, also behoben in
+  27.2. Die Verweise nennen die Sicherheitsseiten von Apple (`support.apple.com/…`).
+- **Android:** CVEs von Google (Android) mit dem Produkt „Android“ und den betroffenen Versionen (z. B. 14, 15, 16).
+  Behoben wird über die Sicherheitspatch-Ebene; das Datum steht im Verweis auf das Bulletin
+  (`source.android.com/…/bulletin/2026/2026-11-01` → Patch-Ebene 2026-11-01). Lücken von Chip-Herstellern
+  (Qualcomm, MediaTek) nennen statt Android ihre Chips; sie bleiben vorerst außen vor.
+- Heute stehen diese Angaben roh in „Laut Datensatz betroffen“, ohne Zusammenfassung je System und ohne Link zum
+  Hersteller.
+
+### Vorschlag
+
+Der Abschnitt heißt künftig **„Betriebssysteme“** und zeigt je System eine Gruppe wie heute bei Debian und Ubuntu:
+
+1. **Windows:** eine Zeile je Windows-Version (Client vor Server, neueste zuerst; „Server Core“ in derselben Zeile),
+   Zustand „betroffen bis Build X“ bzw. „behoben ab Build X“, Link zum Update Guide von Microsoft
+   (`msrc.microsoft.com/update-guide/vulnerability/<CVE>`).
+2. **Apple:** eine Zeile je System (iOS und iPadOS, macOS, watchOS, tvOS, visionOS), „behoben in X“, Link zur
+   Sicherheitsseite von Apple aus den Verweisen.
+3. **Android:** betroffene Versionen, „behoben mit Sicherheitspatch-Ebene JJJJ-MM-TT“, Link zum Bulletin.
+4. Die Zeilen dieser Systeme fallen aus „Laut Datensatz betroffen“ heraus (sonst stünden sie doppelt), alles
+   andere bleibt dort.
+5. **Eigene Rechner markieren** (optional): Meldet ein Rechner Windows mit Build, steht an der passenden Zeile
+   „dein Rechner X: betroffen/behoben“; der Abgleich kennt das schon.
+
+Offen: ob macOS, watchOS, tvOS und visionOS mit sollen (gleiche Daten, kein Mehraufwand) und ob Schritt 5 gleich
+mitkommt.
+
 ## Abweichungen vom Entwurf und Entscheidungen der Umsetzung
 
 Stand Phase 1 (2026-11-05):
