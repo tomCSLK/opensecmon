@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- With the German interface the detail of a CVE (list, page of its own, inbox) shows the German summary of a BSI
+  advisory above the English text: the advisory whose title names an affected product, else the one with the fewest
+  CVEs, else the newest; a collective advisory says how many vulnerabilities its summary covers.
+- A button "Translate" next to texts in the other language of the interface (CVE title and description, title and
+  summary of an advisory). It appears only where the browser can translate on the device (Translator API, Chrome 138
+  or later on the desktop) and nothing is sent to a server; the translation is shown below the original and marked as
+  machine-translated.
+- English texts of the CVE records, and the texts of advisories, carry their language (`lang`), for screen readers.
+
+### Security
+
+- `cargo deny` ignores RUSTSEC-2026-0459 (bundled SQLite before 3.54.0 with a crafted `-wal` file): opensecmon opens
+  only its own database in its state directory, and no sqlx release accepts the fixed `libsqlite3-sys` yet.
+
 ## [0.3.5] - 2026-11-08
 
 First public release. Everything below was developed before it; versions 0.1.0 to 0.3.4 were test packages only.

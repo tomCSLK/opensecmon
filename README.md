@@ -35,6 +35,9 @@ network with one or a few administrators.
   flood when switched on), and a daily report at a set time.
 - **Overview:** a situation page (open critical and KEV matches, the last 30 days, most affected hosts, state of the
   sources), searchable lists of all CVEs and advisories with details, CSV export.
+- **German texts:** with the German interface the detail of a CVE shows the German summary of the BSI above the English
+  text of the record, where the BSI has an advisory. Chrome on the desktop can also translate the English texts on
+  the device (button "Übersetzen"); nothing is sent to a translation service.
 - **Sources** are fetched incrementally (conditional requests, change lists, checksums), each with its own interval,
   state and error backoff. Only the public TLP:WHITE feeds of the BSI are used.
 - **Operations:** Debian package with a hardened systemd service, built-in HTTPS with a self-signed certificate

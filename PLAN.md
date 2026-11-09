@@ -26,6 +26,7 @@ der eigenen Installation (Rechner, Versionen, Pakete auf dem Server) stehen nich
 | 2026-11-08 | **Version 0.3.4** mit dem signierten opensecagent 0.1.1, **Version 0.3.5**: Abstände und Höhen der Knöpfe auf allen Seiten gemessen und korrigiert, opensecagent 0.1.2. Beide als Update im Container geprüft. |
 | 2026-11-08 | **Prüfung vor dem Öffentlich-Schalten:** keine Geheimnisse in Stand und Historie; Bedingungen der Quellen geprüft (kein Hindernis für ein Programm, das zur Laufzeit abruft; Hinweise im Abschnitt „Offene Punkte“); Betriebsdaten aus dem Plan genommen, Beispieldaten der Entwürfe neutral, README neu, `SECURITY.md` und `CONTRIBUTING.md`. Lizenz AGPL-3.0-or-later bestätigt. Die Historie beginnt mit einem Anfangs-Commit neu; Commit-Nummern in diesem Plan beziehen sich auf die frühere, private Historie. |
 | 2026-11-08 | **Öffentlich und erstes Release v0.3.5** (auf Ansage des Nutzers): `tomCSLK/opensecmon` und `tomCSLK/opensecagent` öffentlich (opensecagent mit, weil das Paket ihn enthält), private Meldung von Sicherheitslücken eingeschaltet; Release mit `dev/release.sh --publish` (Paket `opensecmon_0.3.5-1_amd64.deb` mit opensecagent 0.1.2, SHA-256 `bba6a3f9…`); Release-Notes nennen die Windows-Integration von opensecagent als in Arbeit. |
+| 2026-11-09 | **Deutsche Texte zu CVEs** (Vorhaben unten, Weg 1 und 2): Kurzfassung des BSI über dem englischen Text des CVE-Detail bei deutscher Oberfläche, Knopf „Übersetzen“ mit der Translator API des Browsers (übersetzt auf dem Rechner, nichts geht an fremde Dienste), `lang`-Angaben. 443 Tests. Dazu `cargo deny` mit begründeter Ausnahme für RUSTSEC-2026-0459 (mitgeliefertes SQLite, betrifft nur fremde Datenbankdateien; noch kein sqlx mit der Korrektur). |
 
 ## Context
 
@@ -698,6 +699,82 @@ Vorhaben vorher. Reihenfolge vom Nutzer bestätigt (2026-11-07), Umsetzung Schri
      Y“. Abweichung: „installiert“ ist die Version des Quellpakets (`7.0.0-42.42`), nicht der Name aus `uname -r`.
      Ein Test führt das SSH-Skript auf einem System mit dpkg aus (CI, Laptop). Betriebsanleitung und
      `docs/agent-api.md` ergänzt (Skript neu kopieren). 406 Tests.
+
+## Vorhaben: Deutsche Texte zu CVEs (geprüft 2026-11-08, „go“ für Weg 1 und 2 am 2026-11-09)
+
+Anlass: Die Texte der CVE-Einträge (Titel, Beschreibung) sind englisch, auch wenn die Oberfläche auf Deutsch steht.
+Frage des Nutzers: Lassen sie sich bei deutscher Oberfläche automatisch übersetzen?
+
+### Befunde (Test-DB, 2026-11-08)
+
+- Der Leser von cvelistV5 nimmt die englische Beschreibung, sonst die erste (`src/sources/cve5.rs`). Die Texte sind
+  also fast immer englisch. Alle Beschreibungen zusammen haben rund 146 Mio. Zeichen; ganz übersetzen lässt sich die
+  Datenbank deshalb in keinem Fall, höchstens das, was man ansieht.
+- Die BSI-Meldungen (CERT-Bund), die opensecmon ohnehin lädt, sind fast alle deutsch (14 517 von 14 525), mit
+  deutschem Titel und deutscher Kurzfassung. Rund 85 000 CVEs werden in einer BSI-Meldung genannt, von den CVEs seit
+  2025 sind es 38 %, von den offenen Treffern im Eingang der Test-DB 94 % (viele Kernel-Pakete, die das BSI fast
+  vollständig abdeckt).
+- Der BSI-Text gilt für die ganze Meldung, nicht für die einzelne CVE. 6 805 Meldungen nennen genau eine CVE,
+  10 513 höchstens drei; Sammelmeldungen wie Patchdays nennen bis zu über hundert. Beispiele: CVE-2024-6387 steht in
+  „OpenSSH: Schwachstelle ermöglicht Codeausführung“ (1 CVE) und in Sammelmeldungen zu Oracle und macOS (2 bis 85
+  CVEs); CVE-2025-38352 in „Linux Kernel: Schwachstelle ermöglicht Denial of Service“ (1) und im Android-Patchday
+  (111).
+- Die englischen Texte stehen heute in einer Seite mit `lang="de"`; Vorleseprogramme und Browser halten sie für
+  Deutsch.
+
+### Wege
+
+1. **Kurzfassung des BSI anzeigen:** bei deutscher Oberfläche über dem englischen Text. Keine Übersetzung, keine
+   Kosten, nichts verlässt den Server, die Daten sind schon da. Nur wo das BSI eine Meldung hat, bei Sammelmeldungen
+   allgemein.
+2. **Übersetzen im Browser** (Translator API, läuft auf dem eigenen Rechner): Knopf „Übersetzen“ neben englischem
+   Text. Kein Schlüssel, keine Einstellung, passt zur CSP (nur ein eigenes Skript). Nur Chrome ab 138 auf dem
+   Desktop (Edge laut Microsoft ab 148, nicht bestätigt), nicht Firefox und nicht auf dem Handy; das Sprachmodell lädt
+   der Browser beim ersten Mal. Gilt nicht für Mails.
+3. **Eigener Übersetzungsdienst** (z. B. LibreTranslate, selbst betrieben): alles bleibt im eigenen Netz, auch Mails
+   wären möglich. Der Anwender müsste aber einen zweiten Dienst betreiben (gegen „Bedienbarkeit zuerst“), die
+   Qualität bei Fachtexten ist mäßig; eine gepflegte Rust-Anbindung für eine eingebaute Übersetzung (Bergamot) gibt
+   es nicht.
+4. **Cloud-Dienst** (DeepL, Google, Azure): beste Qualität, aber Konto und Schlüssel nötig, DeepL Free reicht nicht
+   (500 000 Zeichen im Monat, die offenen Treffer der Test-DB allein haben 2,3 Mio.). Vor allem erführe der Anbieter,
+   welche Schwachstellen die eigenen Systeme betreffen. Bisher holt opensecmon nur Daten und schickt nichts über den
+   Anwender nach draußen; dabei soll es bleiben.
+
+Entschieden (Nutzer, 2026-11-09): **Weg 1 und Weg 2.** Weg 3 und 4 höchstens später als Option, standardmäßig aus.
+
+Regeln für jede Übersetzung: Der Originaltext bleibt sichtbar, die Übersetzung ist als maschinell gekennzeichnet
+(Fachbegriffe, Versionsangaben wie „prior to 2.4.1“, Funktions- und Paketnamen werden manchmal falsch übersetzt).
+Die Suche bleibt englisch. Englische Texte bekommen `lang="en"`.
+
+### Schritte
+
+1. **Kurzfassung des BSI im CVE-Detail** (in „Alle CVEs“, auf der eigenen Seite und im Eingang), nur bei deutscher
+   Oberfläche: eine Meldung des BSI mit deutschem Text auswählen (zuerst eine, deren Titel ein betroffenes Produkt
+   der CVE nennt, dann die mit den wenigsten CVEs, dann die neueste), Titel und Kurzfassung mit Link zur Meldung über
+   dem englischen Text zeigen; bei Sammelmeldungen der Hinweis, dass der Text für die ganze Meldung mit N
+   Schwachstellen gilt, und bei weiteren Meldungen ein Verweis auf „Quellen“. ✓ erledigt 2026-11-09:
+   `advisory_list::for_cve` liefert dazu Kurzfassung, Sprache und Zahl der CVEs, Auswahl in `web::cves::pick_bsi`
+   (Produktnamen aus `cve_products`, CNA und NVD, ab drei Zeichen). Test-DB: CVE-2024-6387 → „OpenSSH: Schwachstelle
+   ermöglicht Codeausführung“, CVE-2025-38352 → „Linux Kernel: Schwachstelle ermöglicht Denial of Service“. Grenzfall
+   CVE-2025-6965 (SQLite): kein BSI-Titel nennt SQLite, die NVD führt aber iPadOS als betroffen, also gewinnt
+   „Apple iOS und iPadOS: Mehrere Schwachstellen“ (29 CVEs, mit Hinweis) vor „IBM AIX …“ (1 CVE). Der Kasten steht
+   im Abschnitt „Beschreibung“, darunter „Text des CVE-Eintrags (englisch)“.
+2. **Knopf „Übersetzen“** (`static/translate.js`): erscheint nur, wenn der Browser die Übersetzung von der Sprache
+   des Textes in die Sprache der Oberfläche kann (`Translator.availability`), sonst bleibt die Seite wie bisher.
+   Übersetzt Titel und Beschreibung des CVE-Detail, im Advisory-Detail Titel und Zusammenfassung, wenn deren Sprache
+   von der Oberfläche abweicht; die Übersetzung steht unter dem Original, mit dem Hinweis „maschinell im Browser
+   übersetzt“. Beim ersten Mal zeigt der Knopf den Fortschritt des Modell-Downloads. ✓ erledigt 2026-11-09:
+   `static/translate.js`, Knopf `templates/translate_button.html` (Klasse `can-translate-<Sprache>` am `<html>`
+   schaltet ihn ein), Klicks über das ganze Dokument, weil Eingang und Listen das Detail ohne Neuladen tauschen; ein
+   Übersetzer je Sprachpaar für die Seite, Zeile für Zeile übersetzt, Ergebnis nur per `textContent`. Auch umgekehrt:
+   Bei englischer Oberfläche bekommen deutsche BSI-Meldungen den Knopf. Geprüft mit headless Chrome 157 gegen eine
+   Wegwerf-Instanz auf der Test-DB: API vorhanden, Zustand „downloadable“, Knopf sichtbar, Ablauf mit einem
+   Ersatz-Übersetzer (ohne Modell-Download), englische Oberfläche ohne Kasten und Knopf, 390 px ohne Überlauf, keine
+   Fehler in der Konsole. Offen: einmal in einem echten Chrome mit geladenem Modell ausprobieren (Nutzer).
+3. **`lang`-Angaben:** Titel und Beschreibung der CVE mit `lang="en"`, Titel und Zusammenfassung der Advisories mit
+   ihrer Sprache aus dem CSAF-Dokument. ✓ erledigt 2026-11-09 (auch die Hinweise der Advisories).
+
+Später, nur nach „go“: Kurzfassung des BSI auch in Sofort-Mail und Tagesbericht; Weg 3 als Option.
 
 ## Abweichungen vom Entwurf und Entscheidungen der Umsetzung
 
