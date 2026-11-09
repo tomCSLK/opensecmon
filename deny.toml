@@ -9,7 +9,13 @@ targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 # report unmaintained and unsound crates anywhere in the tree
 unmaintained = "all"
 unsound = "all"
-ignore = []
+ignore = [
+    # Bundled SQLite before 3.54.0 can return stale memory when it opens a database together with a crafted
+    # `-wal` file of another page size. opensecmon opens only its own database in its state directory, written
+    # by the service user alone; whoever can plant files there can change the database anyway. No sqlx release
+    # accepts the fixed libsqlite3-sys 0.39 yet (sqlx 0.8 needs 0.30, sqlx 0.9 < 0.38). Remove once one does.
+    { id = "RUSTSEC-2026-0459", reason = "only the own database is opened; no sqlx release with libsqlite3-sys >= 0.39 yet" },
+]
 
 [licenses]
 # Licenses compatible with AGPL-3.0-or-later that occur in the tree (MPL-2.0 and OFL-1.1 are fine as well; add
