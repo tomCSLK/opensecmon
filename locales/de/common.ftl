@@ -86,3 +86,8 @@ sources-subtitle = Zustand der Abrufe: BSI CERT-Bund, CISA KEV, EPSS, CVE/NVD, H
 settings-sections = Bereiche der Einstellungen
 settings-mail = Mailserver
 settings-account = Konto
+
+## Übersetzen im Browser (static/translate.js)
+
+translate = Übersetzen
+translate-title = Im Browser übersetzen; der Text wird nicht verschickt.

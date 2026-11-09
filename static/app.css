@@ -799,3 +799,13 @@ fieldset.opts label.check { flex-wrap: nowrap; align-items: flex-start; margin: 
 .row-actions { display: inline-flex; align-items: center; gap: var(--sp-2); }
 /* Small controls in a list bar share one height. */
 .listbar select { height: 26px; }
+/* German summary of the BSI above the English text of a CVE. */
+.bsisum { padding: var(--sp-3); margin-bottom: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.bsisum p { margin: 0; }
+.bsisum p + p { margin-top: var(--sp-1); }
+.bsisum .bsititle { font-weight: 600; }
+/* Translating in the browser (static/translate.js): the button only where the browser can do it. */
+.trline { display: none; align-items: center; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-2) 0; }
+.can-translate-en .trline[data-tr-from="en"], .can-translate-de .trline[data-tr-from="de"] { display: flex; }
+.trout { margin: var(--sp-2) 0 0; padding-left: var(--sp-3); border-left: 3px solid var(--accent); color: var(--text); }
+.dhead .trout { margin: calc(-1 * var(--sp-2)) 0 var(--sp-3); font-size: var(--fs-sm); }

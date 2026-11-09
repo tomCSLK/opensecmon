@@ -12,7 +12,7 @@
     {%- endif %}
     <span class="ids">{{ d.id }}</span>
   </div>
-  <h1>{{ d.title }}</h1>
+  <h1{% if d.title_from_record %} lang="en"{% if d.translate %} data-tr{% endif %}{% endif %}>{{ d.title }}</h1>
   {%- if let Some(own) = d.own %}{% if let Some(a) = own.actions %}
   {% include "triage_actions.html" %}
   {%- endif %}{% endif %}
@@ -139,10 +139,25 @@
 
   <div class="dsec">
     <h3>{{ t.get("cve-section-description") }}</h3>
+    {%- if let Some(b) = d.bsi %}
+    <div class="bsisum">
+      <p class="small muted">{{ t.get("cve-bsi-summary") }} · <a href="{{ b.href }}">{{ b.id }}</a></p>
+      <p class="bsititle">{{ b.title }}</p>
+      <p class="prewrap">{{ b.summary }}</p>
+      {%- if !b.whole.is_empty() || b.more %}
+      <p class="small muted">{{ b.whole }}{% if !b.whole.is_empty() && b.more %} {% endif %}{% if b.more %}{{ t.get("cve-bsi-more") }}{% endif %}</p>
+      {%- endif %}
+    </div>
+    <p class="small muted">{{ t.get("cve-record-text") }}</p>
+    {%- endif %}
     {%- if d.description.is_empty() %}
     <p class="muted">–</p>
     {%- else %}
-    <p class="desc prewrap">{{ d.description }}</p>
+    <p class="desc prewrap" lang="en"{% if d.translate %} data-tr{% endif %}>{{ d.description }}</p>
+    {%- if d.translate %}
+    {%- let tr_from = "en" %}
+    {% include "translate_button.html" %}
+    {%- endif %}
     {%- endif %}
     <p class="small muted">
       {{ t.get("cve-published") }} {{ d.published }} · {{ t.get("cve-updated") }} {{ d.updated }}

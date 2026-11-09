@@ -86,3 +86,8 @@ sources-subtitle = State of the feeds: BSI CERT-Bund, CISA KEV, EPSS, CVE/NVD, v
 settings-sections = Settings sections
 settings-mail = Mail server
 settings-account = Account
+
+## Translating in the browser (static/translate.js)
+
+translate = Translate
+translate-title = Translate in the browser; the text is not sent anywhere.

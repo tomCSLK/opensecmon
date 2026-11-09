@@ -257,11 +257,18 @@ pub struct ForCve {
     pub source: String,
     pub severity: String,
     pub updated_ms: Option<i64>,
+    /// The summary of the whole advisory (the BSI writes it in German).
+    pub summary: String,
+    /// The language of the CSAF document (`de-DE`, `en-US`, empty if it does not say).
+    pub lang: String,
+    /// How many CVEs the advisory names (the summary covers all of them).
+    pub cve_count: i64,
 }
 
 pub async fn for_cve(pool: &SqlitePool, cve_id: &str) -> Result<Vec<ForCve>> {
     Ok(sqlx::query_as::<_, ForCve>(
-        "SELECT a.seq, a.display_id, a.title, a.publisher, a.source, a.severity, a.updated_ms
+        "SELECT a.seq, a.display_id, a.title, a.publisher, a.source, a.severity, a.updated_ms, a.summary, a.lang,
+                (SELECT COUNT(*) FROM advisory_cves c WHERE c.advisory_seq = a.seq) AS cve_count
          FROM advisory_cves ac JOIN advisories a ON a.seq = ac.advisory_seq
          WHERE ac.cve_id = ? ORDER BY a.updated_ms DESC LIMIT 50",
     )
@@ -411,6 +418,9 @@ mod tests {
         let refs = for_cve(&pool, "CVE-2026-123158").await.unwrap();
         assert_eq!(refs.len(), 1);
         assert_eq!(refs[0].display_id, "WID-SEC-2026-4365");
+        assert_eq!(refs[0].lang, "de-DE");
+        assert_eq!(refs[0].cve_count, 1);
+        assert!(!refs[0].summary.is_empty());
         assert_eq!(band("medium"), Band::Med);
         assert_eq!(band(""), Band::None);
     }

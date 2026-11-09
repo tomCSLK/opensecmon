@@ -11,7 +11,7 @@
     <span class="tag">{{ d.source }}</span>
     <span class="ids">{{ d.display_id }}{% if let Some(tid) = d.tracking_id %} · <span title="{{ t.get("advisory-tracking-id") }}">{{ tid }}</span>{% endif %}</span>
   </div>
-  <h1>{{ d.title }}</h1>
+  <h1{% if d.title_from_doc && !d.text_lang.is_empty() %} lang="{{ d.text_lang }}"{% if d.translate %} data-tr{% endif %}{% endif %}>{{ d.title }}</h1>
   {%- if let Some(own) = d.own %}{% if let Some(a) = own.actions %}
   {% include "triage_actions.html" %}
   {%- endif %}{% endif %}
@@ -28,7 +28,11 @@
     {%- if d.summary.is_empty() %}
     <p class="muted">–</p>
     {%- else %}
-    <p class="desc prewrap">{{ d.summary }}</p>
+    <p class="desc prewrap"{% if !d.text_lang.is_empty() %} lang="{{ d.text_lang }}"{% endif %}{% if d.translate %} data-tr{% endif %}>{{ d.summary }}</p>
+    {%- if d.translate %}
+    {%- let tr_from = d.text_lang.as_str() %}
+    {% include "translate_button.html" %}
+    {%- endif %}
     {%- endif %}
     <p class="small muted">
       {{ t.get("advisory-publisher") }} {{ d.publisher }}
@@ -91,7 +95,7 @@
     {%- for n in d.notes %}
     <details class="note"{% if loop.first %} open{% endif %}>
       <summary>{% if n.title.is_empty() %}{{ n.category }}{% else %}{{ n.title }}{% endif %}</summary>
-      <p class="prewrap small">{{ n.text }}</p>
+      <p class="prewrap small"{% if !d.text_lang.is_empty() %} lang="{{ d.text_lang }}"{% endif %}>{{ n.text }}</p>
     </details>
     {%- endfor %}
   </div>

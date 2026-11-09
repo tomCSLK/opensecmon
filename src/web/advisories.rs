@@ -187,6 +187,12 @@ pub struct DetailView {
     pub status: String,
     pub tlp: String,
     pub lang: String,
+    /// The language of the texts as an HTML `lang` value (`de`, `en`), empty if the document does not say.
+    pub text_lang: String,
+    /// The title comes from the document, not the "(no title)" of the interface.
+    pub title_from_doc: bool,
+    /// The texts are in the other language of the interface: offer the translation in the browser.
+    pub translate: bool,
     pub hash_checked: bool,
     pub web_url: String,
     pub doc_url: String,
@@ -469,6 +475,17 @@ fn host_of(url: &str) -> Option<String> {
     )
 }
 
+/// The primary language of a CSAF document (`de-DE` → `de`) for the HTML `lang` attribute; empty if the
+/// document gives none or something that is not a language tag.
+fn text_lang(lang: &str) -> String {
+    let primary = lang.split(['-', '_']).next().unwrap_or("").trim();
+    if (2..=3).contains(&primary.len()) && primary.chars().all(|c| c.is_ascii_alphabetic()) {
+        primary.to_ascii_lowercase()
+    } else {
+        String::new()
+    }
+}
+
 pub(crate) fn detail_view(t: Lang, d: Detail, back_href: String, standalone: bool) -> DetailView {
     let r = d.record;
     let b = band(&r.severity);
@@ -480,7 +497,11 @@ pub(crate) fn detail_view(t: Lang, d: Detail, back_href: String, standalone: boo
         .into_iter()
         .filter(|n| !(n.category == "summary" && n.text == r.summary))
         .collect();
+    let text_lang = text_lang(&r.lang);
     DetailView {
+        title_from_doc: !r.title.is_empty(),
+        translate: Lang::ALL.iter().any(|l| l.code() == text_lang) && text_lang != t.code(),
+        text_lang,
         seq: r.seq,
         tracking_id: (r.tracking_id != r.display_id).then(|| r.tracking_id.clone()),
         display_id: r.display_id,
@@ -689,5 +710,74 @@ mod tests {
             "{}",
             filtered.body
         );
+    }
+
+    #[test]
+    fn the_text_language_is_the_primary_tag() {
+        assert_eq!(text_lang("de-DE"), "de");
+        assert_eq!(text_lang("EN_us"), "en");
+        assert_eq!(text_lang("en"), "en");
+        assert_eq!(text_lang(""), "");
+        assert_eq!(text_lang("\"><x"), "");
+        assert_eq!(text_lang("deutsch"), "");
+    }
+
+    #[tokio::test]
+    async fn a_german_advisory_offers_the_translation_in_english_only() {
+        let h = harness(true).await;
+        let (session, _) = login(&h, "anna").await;
+        let bsi = store::bsi_provider(&h.state.pool, "https://bsi.example/pm.json")
+            .await
+            .unwrap();
+        let a = parse(BSI_DOC.as_bytes()).unwrap();
+        let mut conn = h.state.pool.acquire().await.unwrap();
+        store::store(
+            &mut conn,
+            &Origin {
+                provider_id: bsi.id,
+                source: "bsi",
+                url: "https://bsi.example/a.json",
+                feed_updated: "x",
+                hash_checked: true,
+                now_ms: 1,
+            },
+            &a,
+        )
+        .await
+        .unwrap();
+        drop(conn);
+        let seq: i64 = sqlx::query_scalar("SELECT seq FROM advisories")
+            .fetch_one(&h.state.pool)
+            .await
+            .unwrap();
+        let path = format!("/advisories/{seq}");
+
+        let de = send(&h.app, get(&path, Some(&session))).await;
+        assert_eq!(de.status, StatusCode::OK);
+        assert!(
+            de.body.contains(r#"<h1 lang="de">OpenSSH: Schwachstelle"#),
+            "{}",
+            de.body
+        );
+        assert!(
+            de.body
+                .contains(r#"<p class="desc prewrap" lang="de">Ein entfernter"#)
+        );
+        assert!(!de.body.contains("data-tr-from"));
+
+        let en = send(&h.app, accepting(get(&path, Some(&session)), "en")).await;
+        assert_eq!(en.status, StatusCode::OK);
+        assert!(
+            en.body
+                .contains(r#"<h1 lang="de" data-tr>OpenSSH: Schwachstelle"#),
+            "{}",
+            en.body
+        );
+        assert!(
+            en.body
+                .contains(r#"<p class="desc prewrap" lang="de" data-tr>Ein entfernter"#)
+        );
+        assert!(en.body.contains(r#"data-tr-from="de""#));
+        assert!(en.body.contains("Translate"));
     }
 }

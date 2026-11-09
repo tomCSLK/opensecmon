@@ -1,0 +1,3 @@
+{#- The button "Translate" for texts marked `data-tr` in the same detail (`tr_from`: their language). Hidden
+    until static/translate.js finds that the browser can translate them on the device (Translator API). -#}
+<p class="trline" data-tr-from="{{ tr_from }}"><button type="button" class="btn sm trbtn" title="{{ t.get("translate-title") }}"><svg class="ico" aria-hidden="true" focusable="false"><use href="#i-languages"/></svg>{{ t.get("translate") }}</button> <span class="trstatus small muted" role="status"></span></p>

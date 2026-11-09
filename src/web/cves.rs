@@ -275,6 +275,18 @@ pub struct AdvisoryLink {
     pub href: String,
 }
 
+/// The German summary of a BSI advisory, shown above the English text of the CVE (German interface only).
+pub struct BsiSummary {
+    pub id: String,
+    pub title: String,
+    pub summary: String,
+    pub href: String,
+    /// "The summary covers the whole advisory with N vulnerabilities", empty if it names this CVE alone.
+    pub whole: String,
+    /// More BSI advisories name the CVE (listed under "Sources").
+    pub more: bool,
+}
+
 pub struct RefView {
     pub url: String,
     pub host: String,
@@ -285,7 +297,12 @@ pub struct RefView {
 pub struct DetailView {
     pub id: String,
     pub title: String,
+    /// The title comes from the CVE record (English), not the "(no title)" of the interface.
+    pub title_from_record: bool,
     pub description: String,
+    /// The texts of the record are English and the interface is not: offer the translation in the browser.
+    pub translate: bool,
+    pub bsi: Option<BsiSummary>,
     pub rejected: bool,
     pub assigner: String,
     pub published: String,
@@ -1091,13 +1108,19 @@ pub(crate) fn detail_view(
         .map(|(provider, source)| format!("{} ({source})", provider_label(t, provider)))
         .unwrap_or_default();
     let vector_raw = r.cvss_vector.clone().unwrap_or_default();
+    let bsi = (t.code() == "de")
+        .then(|| bsi_summary(t, &advisories, &d.products))
+        .flatten();
     DetailView {
+        title_from_record: !r.title.is_empty(),
         title: if r.title.is_empty() {
             t.get("cve-no-title")
         } else {
             r.title
         },
         description: r.description,
+        translate: t.code() != "en",
+        bsi,
         rejected: r.state == "rejected",
         assigner: r.assigner,
         published: date(t, r.published_ms),
@@ -1178,6 +1201,57 @@ pub(crate) fn detail_view(
     }
 }
 
+/// The German summary of the BSI for a CVE: the advisory that explains it best (see [`pick_bsi`]).
+fn bsi_summary(
+    t: Lang,
+    advisories: &[advisory_list::ForCve],
+    products: &[cve_list::ProductRow],
+) -> Option<BsiSummary> {
+    let names: Vec<String> = products
+        .iter()
+        .map(|p| p.product_name.replace('_', " ").trim().to_lowercase())
+        .filter(|n| n.chars().count() >= 3 && n != "n/a")
+        .collect();
+    let a = pick_bsi(advisories, &names)?;
+    Some(BsiSummary {
+        id: a.display_id.clone(),
+        title: a.title.clone(),
+        summary: a.summary.clone(),
+        href: format!("/advisories/{}", a.seq),
+        whole: if a.cve_count > 1 {
+            t.get1("cve-bsi-whole", "count", a.cve_count)
+        } else {
+            String::new()
+        },
+        more: advisories.iter().filter(|a| a.source == "bsi").count() > 1,
+    })
+}
+
+/// Picks the BSI advisory with a German summary that explains a CVE best: first one whose title names an
+/// affected product (lowercase `names`), then the one with the fewest CVEs (its summary covers them all),
+/// then the newest. Collective advisories such as patch days come last.
+fn pick_bsi<'a>(
+    advisories: &'a [advisory_list::ForCve],
+    names: &[String],
+) -> Option<&'a advisory_list::ForCve> {
+    advisories
+        .iter()
+        .filter(|a| {
+            a.source == "bsi"
+                && a.lang.to_ascii_lowercase().starts_with("de")
+                && !a.summary.trim().is_empty()
+        })
+        .min_by_key(|a| {
+            let title = a.title.to_lowercase();
+            let named = names.iter().any(|n| title.contains(n.as_str()));
+            (
+                !named,
+                a.cve_count,
+                std::cmp::Reverse(a.updated_ms.unwrap_or(0)),
+            )
+        })
+}
+
 /// Texts that only templates use, for the catalog check: "cves-search" "cves-search-placeholder"
 /// "cves-filter-more" "cves-filter-band" "cves-filter-band-any" "cves-filter-vendor"
 /// "cves-filter-vendor-help" "cves-filter-rejected" "cves-filter-apply" "cves-remove"
@@ -1188,7 +1262,8 @@ pub(crate) fn detail_view(
 /// "cve-formula-title" "cve-formula-sum" "cve-section-description" "cve-published" "cve-updated" "cve-assigner"
 /// "cve-nvd-status" "cve-section-metrics" "cve-section-products" "cve-section-sources" "cve-section-refs"
 /// "cve-open-source" "cve-score-source" "cve-products-vendor-help" "band-crit" "band-high" "band-med"
-/// "band-low" "band-none" "cves-chip-kev" "cves-chip-epss" "cves-chip-rejected"
+/// "band-low" "band-none" "cves-chip-kev" "cves-chip-epss" "cves-chip-rejected" "cve-bsi-summary"
+/// "cve-bsi-more" "cve-record-text" "translate" "translate-title"
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1420,5 +1495,164 @@ mod tests {
         );
         assert_eq!(iso_date(Lang::De, "2026-11-05"), "05.11.2026");
         assert_eq!(iso_date(Lang::En, "2026-11-05T10:00:00"), "2026-11-05");
+    }
+
+    fn bsi(seq: i64, title: &str, cve_count: i64, updated: i64) -> advisory_list::ForCve {
+        advisory_list::ForCve {
+            seq,
+            display_id: format!("WID-SEC-2026-{seq:04}"),
+            title: title.into(),
+            publisher: "BSI".into(),
+            source: "bsi".into(),
+            severity: "high".into(),
+            updated_ms: Some(updated),
+            summary: format!("Kurzfassung {seq}"),
+            lang: "de-DE".into(),
+            cve_count,
+        }
+    }
+
+    #[test]
+    fn the_bsi_advisory_that_names_the_product_wins_then_the_one_with_fewest_cves() {
+        let names = vec!["openssh".to_owned()];
+        let mut list = vec![
+            bsi(1, "Apple macOS: Mehrere Schwachstellen", 85, 30),
+            bsi(2, "Oracle Linux: Mehrere Schwachstellen", 2, 20),
+            bsi(3, "OpenSSH: Schwachstelle ermöglicht Codeausführung", 1, 10),
+        ];
+        assert_eq!(pick_bsi(&list, &names).unwrap().seq, 3);
+        // Without a product in a title: the fewest CVEs, then the newest.
+        assert_eq!(pick_bsi(&list, &[]).unwrap().seq, 3);
+        list[2].cve_count = 2;
+        assert_eq!(pick_bsi(&list, &[]).unwrap().seq, 2, "newer of two with 2");
+        assert_eq!(
+            pick_bsi(&list, &names).unwrap().seq,
+            3,
+            "the product counts first"
+        );
+        // Vendor advisories, English BSI documents and empty summaries are not used.
+        list[2].source = "vendor".into();
+        list[1].lang = "en-US".into();
+        list[0].summary = " ".into();
+        assert!(pick_bsi(&list, &names).is_none());
+    }
+
+    #[tokio::test]
+    async fn the_detail_shows_the_german_bsi_summary_and_offers_the_translation() {
+        use crate::csaf::document::{parse, tests::BSI_DOC};
+        use crate::storage::advisories::{self as store, Origin};
+        let h = harness(true).await;
+        let (session, _) = login(&h, "anna").await;
+        let bsi = store::bsi_provider(&h.state.pool, "https://bsi.example/pm.json")
+            .await
+            .unwrap();
+        let a = parse(BSI_DOC.as_bytes()).unwrap();
+        let mut b = a.clone();
+        b.display_id = "WID-SEC-2026-0002".into();
+        b.tracking_id = "WID-SEC-W-2026-0002".into();
+        b.title = "Apple macOS: Mehrere Schwachstellen".into();
+        b.summary = "Sammelmeldung <b>macOS</b>".into();
+        b.cves = vec![
+            "CVE-2026-123158".into(),
+            "CVE-2026-1".into(),
+            "CVE-2026-2".into(),
+        ];
+        b.updated_ms = a.updated_ms.map(|t| t + 1_000);
+        let mut conn = h.state.pool.acquire().await.unwrap();
+        for (doc, url) in [
+            (&a, "https://bsi.example/a.json"),
+            (&b, "https://bsi.example/b.json"),
+        ] {
+            let origin = Origin {
+                provider_id: bsi.id,
+                source: "bsi",
+                url,
+                feed_updated: "x",
+                hash_checked: true,
+                now_ms: 1,
+            };
+            store::store(&mut conn, &origin, doc).await.unwrap();
+        }
+        drop(conn);
+        sqlx::query(
+            "INSERT INTO cves (id, state, title, description, published_ms)
+             VALUES ('CVE-2026-123158', 'published', 'OpenSSH flaw', 'A remote attacker can run code.', 1)",
+        )
+        .execute(&h.state.pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO cve_products (cve_id, origin, vendor, product, vendor_name, product_name)
+             VALUES ('CVE-2026-123158', 'cna', 'openbsd', 'openssh', 'OpenBSD', 'OpenSSH')",
+        )
+        .execute(&h.state.pool)
+        .await
+        .unwrap();
+
+        let de = send(&h.app, get("/cves/CVE-2026-123158", Some(&session))).await;
+        assert_eq!(de.status, StatusCode::OK);
+        let body = &de.body;
+        assert!(body.contains("Kurzfassung des BSI"), "{body}");
+        assert!(
+            body.contains("Ein entfernter, anonymer Angreifer kann eine Schwachstelle in OpenSSH")
+        );
+        assert!(
+            !body.contains("Sammelmeldung"),
+            "the advisory naming the product wins"
+        );
+        assert!(body.contains("Weitere Meldungen des BSI"));
+        assert!(
+            !body.contains("ganze Meldung"),
+            "the chosen advisory names this CVE alone"
+        );
+        assert!(body.contains("Text des CVE-Eintrags (englisch)"));
+        assert!(body.contains(r#"<p class="desc prewrap" lang="en" data-tr>A remote attacker"#));
+        assert!(body.contains(r#"<h1 lang="en" data-tr>OpenSSH flaw</h1>"#));
+        assert!(body.contains(r#"data-tr-from="en""#));
+        assert!(body.contains("/static/translate.js"));
+
+        // Without the product in a title and with equal counts the newer wins; a collective one says so.
+        sqlx::query("DELETE FROM cve_products")
+            .execute(&h.state.pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            "UPDATE advisories SET title = 'Kein Produkt' WHERE display_id = 'WID-SEC-2026-4365'",
+        )
+        .execute(&h.state.pool)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO advisory_cves (advisory_seq, cve_id) SELECT seq, 'CVE-2026-9' FROM advisories WHERE display_id = 'WID-SEC-2026-4365'")
+            .execute(&h.state.pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO advisory_cves (advisory_seq, cve_id) SELECT seq, 'CVE-2026-8' FROM advisories WHERE display_id = 'WID-SEC-2026-4365'")
+            .execute(&h.state.pool)
+            .await
+            .unwrap();
+        let tie = send(&h.app, get("/cves/CVE-2026-123158", Some(&session))).await;
+        assert!(
+            tie.body.contains("Sammelmeldung &#60;b&#62;macOS")
+                || tie.body.contains("Sammelmeldung &lt;b&gt;macOS"),
+            "{}",
+            tie.body
+        );
+        assert!(tie.body.contains("mit 3 Schwachstellen"));
+
+        // In English neither the summary of the BSI nor the button.
+        let en = send(
+            &h.app,
+            accepting(get("/cves/CVE-2026-123158", Some(&session)), "en"),
+        )
+        .await;
+        assert_eq!(en.status, StatusCode::OK);
+        assert!(en.body.contains("Description"), "{}", en.body);
+        assert!(!en.body.contains("BSI summary"));
+        assert!(!en.body.contains("Sammelmeldung"));
+        assert!(!en.body.contains("data-tr-from"));
+        assert!(
+            en.body
+                .contains(r#"<p class="desc prewrap" lang="en">A remote attacker"#)
+        );
     }
 }
