@@ -1,6 +1,6 @@
 [package]
 name = "opensecmon"
-version = "0.3.5"
+version = "0.3.6"
 edition = "2024"
 description = "opensecmon – security advisory monitoring for your own hardware and software"
 authors = ["Thomas Cieslik"]
