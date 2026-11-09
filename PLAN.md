@@ -770,7 +770,8 @@ Die Suche bleibt englisch. Englische Texte bekommen `lang="en"`.
    Bei englischer Oberfläche bekommen deutsche BSI-Meldungen den Knopf. Geprüft mit headless Chrome 157 gegen eine
    Wegwerf-Instanz auf der Test-DB: API vorhanden, Zustand „downloadable“, Knopf sichtbar, Ablauf mit einem
    Ersatz-Übersetzer (ohne Modell-Download), englische Oberfläche ohne Kasten und Knopf, 390 px ohne Überlauf, keine
-   Fehler in der Konsole. Offen: einmal in einem echten Chrome mit geladenem Modell ausprobieren (Nutzer).
+   Fehler in der Konsole. Danach vom Nutzer in seinem Chrome mit geladenem Modell gegen eine lokale Testinstanz
+   ausprobiert: „funktioniert wirklich gut“ (2026-11-09).
 3. **`lang`-Angaben:** Titel und Beschreibung der CVE mit `lang="en"`, Titel und Zusammenfassung der Advisories mit
    ihrer Sprache aus dem CSAF-Dokument. ✓ erledigt 2026-11-09 (auch die Hinweise der Advisories).
 
