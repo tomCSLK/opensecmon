@@ -569,9 +569,12 @@ Verbindung), versucht er es später wieder. Mehr Erkennung des Netzes braucht er
 
 ### Ideen (noch nicht beschlossen, Umsetzung nur nach „go“)
 
-- **Python aus dem „Python install manager“** (Befund 2026-11-07, Windows-Testrechner): Laufzeiten, die `py install` anlegt,
+- ~~**Python aus dem „Python install manager“**~~ (Befund 2026-11-07, Windows-Testrechner): Laufzeiten, die `py install` anlegt,
   haben keinen Uninstall-Eintrag und fehlen deshalb in der Windows-Meldung. Möglich wäre, die PEP-514-Einträge
   (`Software\Python\<Firma>\<Tag>`, Maschine und angemeldete Benutzer) mitzulesen; im Skript oder erst im Agent.
+  **Erledigt im Agent** (opensecagent, Windows-Fassung, 2026-11-08): Pythons unter `PythonCore` ohne Uninstall-Eintrag
+  kommen als `win` mit der ID `Python\PythonCore\<Tag>`; opensecmon ordnet sie wie die Einträge des Installers über
+  den Namen zu, hier war nichts zu ändern (`docs/agent-api.md` ergänzt). Das PowerShell-Skript bleibt ohne sie.
 - **CSAF hinter genaueren Daten** (Befund 2026-11-07, Windows-Testrechner, Python 3.14.10): Das BSI nennt oft nur einen groben
   Bereich („Python < 3.15.0“), NVD kennt die Grenze je Zweig und schließt die Version aus; der CSAF-Treffer (mittel)
   bleibt trotzdem offen (5 von 8 Python-Treffern). Vorschlag: den CSAF-Treffer übergehen, wenn NVD- oder

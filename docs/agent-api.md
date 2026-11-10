@@ -240,8 +240,8 @@ Windows:
 | `os.arch` | Machine architecture as the system names it (`x86_64`, `aarch64`, `x64`, `arm64`). Stored since opensecmon 0.3.4; it chooses the package of an update. |
 | `dpkg` | Linux with dpkg: the package lines exactly as in form a), without `os-release`. |
 | `items` | Software outside dpkg (at most 50,000 entries together with `dpkg`). |
-| `items[].type` | `snap`, `flatpak`, `win` (an entry under `…\CurrentVersion\Uninstall`, 32 and 64 bit, machine and user), `appx` (Store apps). Unknown types are skipped and counted in the warnings. |
-| `items[].id` | Stable identifier: the snap name, the Flatpak application ID, the registry key name of the Uninstall entry, the package family name of an appx. |
+| `items[].type` | `snap`, `flatpak`, `win` (an entry under `…\CurrentVersion\Uninstall`, 32 and 64 bit, machine and user; also a Python registered under `Software\Python\PythonCore\<tag>` (PEP 514) that has no Uninstall entry, as the Python install manager installs them), `appx` (Store apps). Unknown types are skipped and counted in the warnings. |
+| `items[].id` | Stable identifier: the snap name, the Flatpak application ID, the registry key name of the Uninstall entry (`Python\PythonCore\<tag>` for a Python from PEP 514), the package family name of an appx. |
 | `items[].name`, `version`, `publisher` | As the system shows them (at most 200, 100 and 200 characters). |
 | `items[].winget_id` | Windows, where known: the winget package identifier (a better key than the display name). |
 | `items[].scope` | `machine` or `user` (installed for one user only). The user is never named. |
