@@ -883,9 +883,81 @@ Keine neue Abhängigkeit, keine Migration.
   escaped (Test mit `<script>` im Titel). Schlägt das HTML fehl, geht die Mail als reiner Text hinaus.
 - ✓ Vorschau: `cargo test --lib mail_preview -- --ignored` → `target/mail-preview/{one,many,report,quiet,test}.{html,txt}`.
 - ✓ Tests: 461 (neu u. a. Multipart mit Logo, Escaping, Einzel- und Sammelmail, Bericht, Test-Mail).
+- ✓ Vom Nutzer im Mailprogramm geprüft (2026-11-19, Test-Paket 0.3.7): „passt“.
 - Abweichungen vom Entwurf: Datum ohne Wochentag; „gebündelt seit“ und die Quellen einer CVE fehlen in der Kopfzeile;
   inaktive Stufen der Skala in der hellen Hintergrundfarbe statt halbtransparent (Mailprogramme kennen `opacity` nicht
   zuverlässig); „Zurückgestellt“ ohne den Grund der Zurückstellung.
+
+## Vorhaben: Docker-Version (Container-Image) – Wunsch des Nutzers 2026-11-19, geplant, Umsetzung nach „go“
+
+**Anlass:** Wie bei opennetmon (dort Vorhaben Q, mit v0.7.0 als `ghcr.io/tomcslk/opennetmon` erschienen) soll opensecmon zusätzlich zum `.deb` als
+Container laufen, damit es auf beliebiger Hardware einsetzbar ist (NAS, Pi, Docker-Hosts). Das `.deb` bleibt.
+
+**Grundsatz:** die Entscheidungen von opennetmon übernehmen (dort am 2026-11-12 getroffen, umgesetzt und in der CI auf amd64 und arm64 geprüft) und
+die Dateien von dort kopieren und anpassen (`Containerfile`, `compose.yaml`, `dev/container.sh`, `.github/workflows/container.yml`,
+`docs/docker.md`, die Module `first_start`, `healthcheck`, `backup`). Unten nur, was bei opensecmon anders ist oder fehlt.
+
+### Befunde (Code von opensecmon, 2026-11-19)
+
+- **Schon da:** statisches musl-Binary, eingebautes HTTPS mit `tls generate`, `key generate`, `backup` (konsistente Kopie im laufenden Betrieb),
+  Konfiguration aus Datei plus `OPENSECMON_*`. Krypto nur mit `ring`, SQLite gebündelt, Kompression mit `zlib-rs`: nichts, was gegen
+  `aarch64-unknown-linux-musl` spricht (opennetmon hat dieselben Bausteine).
+- **Fehlt gegenüber opennetmon:**
+  - Umgebungsvariablen nur für 4 Einstellungen (`LISTEN`, `DATABASE_PATH`, `LOG_FILTER`, `SECRET_KEY_FILE`); im Image müssen alle
+    gehen (`allowed_hosts`, `time_zone`, `agent_networks`, `tls_*`, `cookie_secure`, `client_ip_header` …) und die Datei per `OPENSECMON_CONFIG`.
+  - Schlüssel und Zertifikat legt heute `postinst` an; im Container braucht es `generate_missing`.
+  - Kein Unterbefehl `healthcheck` (das Image hat weder Shell noch curl).
+  - Sicherung nur über den systemd-Timer und `opensecmon-backup.sh`; im Container fehlt beides.
+  - Keine eingebettete tzdb: jiff liest `/usr/share/zoneinfo`, das in `scratch` fehlt (Uhrzeit des Tagesberichts, Wartung, Mails in Ortszeit).
+  - Logs immer mit Farbcodes, auch im Journal und in `docker logs`.
+  - Einen Hinweis auf neue Versionen gibt es in opensecmon nicht; `packaging = "container"` entfällt also.
+- **Eigenheiten von opensecmon:**
+  - **Größe:** Datenbank auf dem eigenen Server ~1,8 GB, während eines Abrufs zusätzlich Downloads (Ordner `downloads/` neben der DB, vor und nach
+    jedem Lauf geleert), der Erstimport lädt ~1 GB (dazu ~900 MB OSV) und brauchte im eigenen Betrieb ~25 min. Eine Sicherung ist ~1,6 GB; 14
+    Sicherungen wie beim `.deb`-Skript wären über 20 GB.
+  - **Pakete von opensecagent:** Das `.deb` bringt sie unter `/usr/share/opensecmon/agent/` mit (vom Nutzer signiert, lokal über
+    `dev/agent-packages.sh`). opensecagent hat keine GitHub-Releases, die CI kommt an diese Dateien also nicht heran.
+  - **Adressen der Clients:** `agent_networks` (Anmeldung und Meldungen der Rechner nur aus erlaubten Netzen), die Sperre nach Fehlversuchen und
+    das Protokoll nutzen die Absenderadresse. Unter Docker mit Portweiterleitung bleibt sie erhalten; unter Podman ohne Root (slirp4netns) kommen
+    alle Anfragen von einer internen Adresse, dann greifen `agent_networks` und die Sperre nicht richtig. Mit `pasta` (Podman 5) bleibt sie
+    erhalten.
+  - **Port:** das `.deb` nutzt 8444, weil opennetmon 8443 belegt; beide sollen auch als Container nebeneinander laufen.
+  - **Ausgehend:** HTTPS zu den Quellen, SMTP, SSH zu den Hosts (Import), HTTPS zu opennetmon: alles aus dem Bridge-Netz möglich.
+
+### Vorschlag (zur Entscheidung durch den Nutzer)
+
+1. **Image wie opennetmon:** `scratch`, nur Binary, `LICENSE`, `THIRD-PARTY-LICENSES.txt`, UID/GID `10001`, Volumes `/etc/opensecmon` (Schlüssel,
+   Zertifikat, optional `config.toml`) und `/var/lib/opensecmon` (DB, Sicherungen), eingebautes HTTPS mit selbst signiertem Zertifikat beim ersten
+   Start, `HEALTHCHECK` über `opensecmon healthcheck`, Labels `org.opencontainers.image.*`, kein Standardbenutzer
+   (`docker compose exec opensecmon opensecmon user add <name>`).
+2. **Port 8444** wie beim `.deb` (läuft neben opennetmon auf 8443).
+3. **Architekturen** `linux/amd64` und `linux/arm64`, nativ in der CI gebaut, Push nach `ghcr.io/tomcslk/opensecmon` nur beim Release-Tag
+   (`X.Y.Z`, `X.Y`, `latest`).
+4. **Sicherung im Programm** (`backup_dir`, `backup_time` 03:30, `backup_keep`); im Image **`backup_keep = 3`** statt 14 wegen der Größe (wie auf dem
+   eigenen Server), in `docs/docker.md` mit Platzbedarf. Im `.deb` bleibt der Timer.
+5. **Pakete von opensecagent:** zunächst **ohne** im Image. Die Seiten der Rechner bieten dann wie heute ohne Pakete nur die Skripte an. Wer die
+   Pakete will, legt sie in ein drittes, optionales Volume (`agent_packages_dir`, z. B. `/var/lib/opensecmon/agent`; opensecmon prüft dort wie
+   heute Namen und Signaturen). Später, wenn opensecagent eigene Releases mit Signaturen hat, kann die CI sie holen und gegen
+   `keys/allowed_signers` prüfen (eigener Punkt, nach „go“).
+6. **Adressen der Clients:** in `docs/docker.md` und als Warnung beim Start (alle Anfragen von derselben internen Adresse) beschreiben: Docker oder
+   Podman mit `pasta`, sonst `network_mode: host`; hinter Traefik/Caddy `client_ip_header`.
+7. **`compose.yaml`** sicher voreingestellt wie bei opennetmon (`read_only`, `cap_drop: ALL`, `no-new-privileges`, `tmpfs /tmp`, zwei Volumes,
+   `TZ`), ohne `ping_group_range` (opensecmon pingt nicht). Hinweis auf `OPENSECMON_ALLOWED_HOSTS`, sonst warnt der Start.
+8. **Veröffentlichung** nur mit einem Release auf Ansage (z. B. v0.4.0 mit den HTML-Mails); den eigenen Server betrifft das nicht, dort bleibt
+   das `.deb`.
+
+### Schritte (je nach „go“)
+
+1. **Vorarbeiten im Programm** (aus opennetmon übernommen): alle Einstellungen als `OPENSECMON_*` und `OPENSECMON_CONFIG`, `generate_missing`,
+   tzdb eingebettet als Ersatz (jiff `tzdb-bundle-always`, Abhängigkeit `jiff-tzdb`, Unlicense OR MIT), `opensecmon healthcheck`, Sicherung
+   nach Zeitplan, Logs ohne Farbcodes ohne Terminal, Warnung bei gleicher Absenderadresse; Texte de/en, `docs/configuration.md` (neu, alle
+   Einstellungen mit Variable), `deploy/config.example.toml`. Für das `.deb` bleiben alle neuen Schalter aus.
+2. **Image und Doku:** `Containerfile`, `compose.yaml`, `dev/container.sh` (Bau für die eigene Architektur und Rauchtest), Workflow
+   `container.yml` (amd64/arm64, Rauchtest, Push nur beim Tag), `docs/docker.md`, Abschnitt im README, `release.sh` legt `compose.yaml` ins Release.
+3. **Prüfung:** lokal mit Podman ohne Root (erster Start, Healthcheck, `user add`, Anmeldung, Neustart und Update mit denselben Volumes, Sicherung,
+   Erstimport mit echtem Netz und Messung von Dauer, Speicher und Platz, Mail, Agent-Anmeldung mit Absenderadresse); in der CI von Hand gestartet
+   ohne Push (amd64 und arm64 unter Docker). Offen bleibt der Erstimport auf einem Pi (Dauer, Speicher).
+4. **Veröffentlichung** mit dem nächsten Release, nur auf Ansage; danach Paket auf GHCR öffentlich (Nutzer).
 
 ## Abweichungen vom Entwurf und Entscheidungen der Umsetzung
 
