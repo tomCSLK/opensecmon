@@ -106,37 +106,14 @@ async fn alerts(pool: &SqlitePool) -> Vec<(String, i64, String)> {
 }
 
 /// Header and decoded body of a received mail (lettre picks quoted-printable or base64 for the body).
+/// Subject, text and HTML part of a received mail, decoded.
 fn decoded(m: &crate::mail::testsmtp::Received) -> String {
-    use base64::Engine;
-    let data = m.data.replace("\r\n", "\n");
-    let (head, body) = data.split_once("\n\n").unwrap_or((&data, ""));
-    let lower = head.to_ascii_lowercase();
-    let text = if lower.contains("content-transfer-encoding: base64") {
-        let joined: String = body.split_whitespace().collect();
-        let bytes = base64::engine::general_purpose::STANDARD
-            .decode(joined)
-            .unwrap();
-        String::from_utf8(bytes).unwrap()
-    } else if lower.contains("content-transfer-encoding: quoted-printable") {
-        let joined = body.replace("=\n", "");
-        let mut bytes = Vec::new();
-        let raw = joined.as_bytes();
-        let mut i = 0;
-        while i < raw.len() {
-            if raw[i] == b'=' && i + 2 < raw.len() {
-                let hex = std::str::from_utf8(&raw[i + 1..i + 3]).unwrap();
-                bytes.push(u8::from_str_radix(hex, 16).unwrap());
-                i += 3;
-            } else {
-                bytes.push(raw[i]);
-                i += 1;
-            }
-        }
-        String::from_utf8(bytes).unwrap()
-    } else {
-        body.to_owned()
-    };
-    format!("{head}\n{text}")
+    format!(
+        "{}\n{}\n{}",
+        m.subject(),
+        m.part("text/plain").unwrap_or_default(),
+        m.part("text/html").unwrap_or_default()
+    )
 }
 
 fn settings() -> Settings {
@@ -208,7 +185,9 @@ async fn switching_on_takes_the_backlog_as_known_and_new_matches_go_out_bundled(
 
     let t0 = 1_000 * MIN;
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, t0).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, t0)
+            .await
+            .unwrap(),
         Instant::Baseline(1)
     );
     assert!(e.smtp.received().is_empty());
@@ -220,26 +199,28 @@ async fn switching_on_takes_the_backlog_as_known_and_new_matches_go_out_bundled(
         ]
     );
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, t0 + MIN).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, t0 + MIN)
+            .await
+            .unwrap(),
         Instant::Idle
     );
 
     // A new critical match waits for the bundle, then goes out.
     found(&e.pool, 1, &["CVE-2026-0002"], t0 + 2 * MIN).await;
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, t0 + 2 * MIN)
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, t0 + 2 * MIN)
             .await
             .unwrap(),
         Instant::Waiting(1)
     );
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, t0 + 11 * MIN)
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, t0 + 11 * MIN)
             .await
             .unwrap(),
         Instant::Waiting(1)
     );
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, t0 + 12 * MIN)
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, t0 + 12 * MIN)
             .await
             .unwrap(),
         Instant::Sent(1)
@@ -255,7 +236,7 @@ async fn switching_on_takes_the_backlog_as_known_and_new_matches_go_out_bundled(
     // The same vulnerability on a second host is not mailed again.
     found(&e.pool, 2, &["CVE-2026-0002"], t0 + 13 * MIN).await;
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, t0 + 13 * MIN)
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, t0 + 13 * MIN)
             .await
             .unwrap(),
         Instant::Idle
@@ -273,7 +254,7 @@ async fn switching_on_takes_the_backlog_as_known_and_new_matches_go_out_bundled(
     };
     store::save(&e.pool, &s, t0).await.unwrap();
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, t0 + 14 * MIN)
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, t0 + 14 * MIN)
             .await
             .unwrap(),
         Instant::Baseline(1)
@@ -297,7 +278,9 @@ async fn without_bundling_a_match_goes_out_in_the_next_round_and_triaged_ones_st
     .unwrap();
     cve(&e.pool, "CVE-2026-0001", 95, false).await;
     cve(&e.pool, "CVE-2026-0002", 95, false).await;
-    instant_round(&e.pool, &e.secrets, MIN).await.unwrap();
+    instant_round(&e.pool, &e.secrets, &TimeZone::UTC, MIN)
+        .await
+        .unwrap();
     found(&e.pool, 1, &["CVE-2026-0001", "CVE-2026-0002"], 2 * MIN).await;
     // Done before the mail went out: not mailed.
     sqlx::query("UPDATE matches SET state = 'done' WHERE vuln = 'CVE-2026-0002'")
@@ -305,7 +288,9 @@ async fn without_bundling_a_match_goes_out_in_the_next_round_and_triaged_ones_st
         .await
         .unwrap();
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, 2 * MIN).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, 2 * MIN)
+            .await
+            .unwrap(),
         Instant::Sent(1)
     );
     let text = decoded(&e.smtp.received()[0]);
@@ -334,18 +319,26 @@ async fn a_failed_mail_is_retried_later_and_logged() {
     .await
     .unwrap();
     cve(&e.pool, "CVE-2026-0001", 95, false).await;
-    instant_round(&e.pool, &e.secrets, MIN).await.unwrap();
+    instant_round(&e.pool, &e.secrets, &TimeZone::UTC, MIN)
+        .await
+        .unwrap();
     found(&e.pool, 1, &["CVE-2026-0001"], 2 * MIN).await;
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, 2 * MIN).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, 2 * MIN)
+            .await
+            .unwrap(),
         Instant::Failed
     );
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, 3 * MIN).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, 3 * MIN)
+            .await
+            .unwrap(),
         Instant::Waiting(1)
     );
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, 18 * MIN).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, 18 * MIN)
+            .await
+            .unwrap(),
         Instant::Failed
     );
     let log = mail_store::recent_notifications(&e.pool, 5).await.unwrap();
@@ -364,11 +357,15 @@ async fn mail_switched_off_sends_nothing_and_switching_on_does_not_flood() {
     cve(&e.pool, "CVE-2026-0001", 95, true).await;
     found(&e.pool, 1, &["CVE-2026-0001"], MIN).await;
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, MIN).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, MIN)
+            .await
+            .unwrap(),
         Instant::Off
     );
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, 20 * MIN).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, 20 * MIN)
+            .await
+            .unwrap(),
         Instant::Off
     );
     sqlx::query("UPDATE mail_settings SET enabled = 1")
@@ -376,11 +373,15 @@ async fn mail_switched_off_sends_nothing_and_switching_on_does_not_flood() {
         .await
         .unwrap();
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, 30 * MIN).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, 30 * MIN)
+            .await
+            .unwrap(),
         Instant::Baseline(1)
     );
     assert_eq!(
-        instant_round(&e.pool, &e.secrets, 60 * MIN).await.unwrap(),
+        instant_round(&e.pool, &e.secrets, &TimeZone::UTC, 60 * MIN)
+            .await
+            .unwrap(),
         Instant::Idle
     );
     assert!(e.smtp.received().is_empty());
@@ -466,7 +467,7 @@ async fn the_report_lists_failed_sources_and_new_matches_since_the_last_one() {
         report_due: true,
         ..settings()
     };
-    let r = build_report(&e.pool, &s, Lang::En, 10 * MIN, Some(MIN))
+    let r = build_report(&e.pool, &s, Lang::En, &TimeZone::UTC, 10 * MIN, Some(MIN))
         .await
         .unwrap();
     assert_eq!(r.new.as_ref().unwrap().len(), 1);
@@ -478,8 +479,15 @@ async fn the_report_lists_failed_sources_and_new_matches_since_the_last_one() {
     let failed = r.sources.as_ref().unwrap();
     assert_eq!(failed.len(), 1);
     assert_eq!(failed[0].error, "HTTP 503");
-    let r = build_report(&e.pool, &s, Lang::En, 10 * MIN, Some(6 * MIN))
-        .await
-        .unwrap();
+    let r = build_report(
+        &e.pool,
+        &s,
+        Lang::En,
+        &TimeZone::UTC,
+        10 * MIN,
+        Some(6 * MIN),
+    )
+    .await
+    .unwrap();
     assert!(r.new.as_ref().unwrap().is_empty());
 }

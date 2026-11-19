@@ -348,10 +348,16 @@ pub async fn send_test(
 ) -> Result<Html<String>> {
     user.verify_csrf(&form.csrf_token)?;
     let config = store::load_config(&state.pool, &state.secrets).await?;
-    let mail_lang = config.language;
-    let subject = format!("[opensecmon] {}", mail_lang.get("mail-test-subject"));
-    let body = format!("{}\n", mail_lang.get("mail-test-body"));
-    let outcome = mail::send(&config, &subject, &body).await;
+    let settings = crate::storage::alerts::settings(&state.pool).await?;
+    let message = mail::testmail::compose(
+        &config,
+        &settings,
+        &user.username,
+        &state.time_zone,
+        now_ms(),
+    );
+    let subject = message.subject.clone();
+    let outcome = mail::send(&config, &message).await;
     let error = outcome.as_ref().err().map(mail::MailError::user_message);
     store::record_notification(
         &state.pool,

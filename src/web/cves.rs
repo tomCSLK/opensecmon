@@ -1243,12 +1243,7 @@ fn bsi_summary(
     advisories: &[advisory_list::ForCve],
     products: &[cve_list::ProductRow],
 ) -> Option<BsiSummary> {
-    let names: Vec<String> = products
-        .iter()
-        .map(|p| p.product_name.replace('_', " ").trim().to_lowercase())
-        .filter(|n| n.chars().count() >= 3 && n != "n/a")
-        .collect();
-    let a = pick_bsi(advisories, &names)?;
+    let a = pick_bsi(advisories, &product_names(products))?;
     Some(BsiSummary {
         id: a.display_id.clone(),
         title: a.title.clone(),
@@ -1261,6 +1256,24 @@ fn bsi_summary(
         },
         more: advisories.iter().filter(|a| a.source == "bsi").count() > 1,
     })
+}
+
+/// The product names of a CVE in lower case, for [`pick_bsi`].
+fn product_names(products: &[cve_list::ProductRow]) -> Vec<String> {
+    products
+        .iter()
+        .map(|p| p.product_name.replace('_', " ").trim().to_lowercase())
+        .filter(|n| n.chars().count() >= 3 && n != "n/a")
+        .collect()
+}
+
+/// The German summary of the BSI for a CVE as the instant mail shows it: advisory id and text.
+pub(crate) fn bsi_text(
+    advisories: &[advisory_list::ForCve],
+    products: &[cve_list::ProductRow],
+) -> Option<(String, String)> {
+    pick_bsi(advisories, &product_names(products))
+        .map(|a| (a.display_id.clone(), a.summary.clone()))
 }
 
 /// Picks the BSI advisory with a German summary that explains a CVE best: first one whose title names an

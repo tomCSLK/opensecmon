@@ -97,3 +97,79 @@ report-send-now = Jetzt senden
 report-send-hint = Sendet den Bericht sofort, auch wenn er leer ist; der nächste zählt neue Treffer ab dann.
 report-sent = Tagesbericht an { $recipients } gesendet.
 report-preview-empty = (Wird nicht gesendet: nichts zu melden.)
+alert-av-n = Netzwerk
+alert-av-a = Nachbarnetz
+alert-av-l = lokal
+alert-av-p = physischer Zugriff
+alert-pr-n = ohne Anmeldung
+alert-pr-l = mit Anmeldung
+alert-pr-h = mit Administratorrechten
+alert-ui-n = keine Interaktion
+alert-ui-r = mit Interaktion
+alert-days-ago = { $days ->
+    [0] heute
+    [one] gestern
+   *[other] vor { $days } Tagen
+}
+alert-epss-percentile = höher als bei { $percent } % aller CVEs
+alert-epss-label = EPSS (Wahrscheinlichkeit der Ausnutzung)
+alert-bsi = Kurzfassung des BSI · { $id }
+alert-cvss = CVSS { $version }
+alert-kev-since = seit { $date }
+alert-kev-due = Frist der CISA: { $date }
+alert-kev-exploited = KEV · wird ausgenutzt
+alert-published = Veröffentlicht
+alert-on = auf
+alert-fixed-in = behoben in
+alert-affected = Betroffen ({ $count })
+alert-col-asset = Asset
+alert-col-host = Host
+alert-col-versions = Installiert → behoben
+alert-col-confidence = Abgleich
+alert-no-fix = noch keine Korrektur
+alert-reasons = Gemeldet, weil
+alert-chip-prio = { $band } · Priorität { $prio }
+alert-open-inbox = Im Eingang öffnen
+alert-open-cve = CVE-Detail
+alert-open-all = Alle im Eingang öffnen
+alert-settings-link = Sofort-Mails einstellen
+alert-many-chip = { $count } neue Treffer
+alert-many-title = { $count } neue Treffer für eigene Assets
+alert-many-top = Höchste Priorität { $prio }
+alert-many-kev = { $count } in CISA KEV
+alert-many-hosts = { $count ->
+    [one] 1 Host betroffen
+   *[other] { $count } Hosts betroffen
+}
+alert-tile-kev = in KEV
+alert-tile-hosts = Hosts
+alert-worst-first = Schlimmste zuerst
+report-heading = Lage am { $date }
+report-change-up = { $count } mehr als gestern
+report-change-down = { $count } weniger als gestern
+report-change-same = so viele wie gestern
+report-hosts = Meistbetroffene Hosts
+report-hosts-line = Meistbetroffene Hosts: { $hosts }
+report-host = { $host } { $count }
+report-host-critical = { $host } { $count } ({ $critical } kritisch)
+report-host-open = { $count } offen
+report-host-crit = { $count } kritisch
+report-trend = Offene Schwachstellen, 14 Tage
+report-today = heute
+report-tile-new = neu seit { $since }
+report-tile-open = kritisch offen (≥ 85 oder KEV)
+report-tile-due = wieder fällig
+report-tile-sources = Quellen mit Fehlern
+report-nothing-chip = Nichts zu melden
+report-nothing-title = Ruhiger Tag
+report-pre-open = { $count } offen
+report-pre-new = { $count } neu
+report-pre-critical = { $count } kritisch offen
+report-pre-sources = { $count ->
+    [one] 1 Quelle mit Fehlern
+   *[other] { $count } Quellen mit Fehlern
+}
+report-open-inbox = Eingang öffnen
+report-open-situation = Lage
+report-open-sources = Quellen
+report-settings-link = Tagesbericht einstellen

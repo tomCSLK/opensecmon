@@ -1,0 +1,48 @@
+{#- The daily report (src/alerts/html.rs). -#}
+{% extends "mail/base.html" %}
+{% import "mail/macros.html" as m %}
+{% block content %}
+{% call m::head(head) %}{% endcall %}
+{%- if !tiles.is_empty() %}
+{% call m::tiles(tiles) %}{% endcall %}
+{%- endif %}
+{%- if let Some(tr) = trend %}
+<tr><td class="px" style="padding:14px 28px 18px">{% call m::heading(t.get("report-trend")) %}{% endcall %}{% call m::trend(tr) %}{% endcall %}</td></tr>
+{%- endif %}
+{%- if !hosts.is_empty() %}
+<tr><td class="px" style="padding:0 28px 18px">{% call m::heading(t.get("report-hosts")) %}{% endcall %}
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+{%- for h in hosts %}
+<tr><td class="t1 mono" width="110" style="font-family:Consolas,Menlo,'Courier New',monospace;font-size:13px;color:#15181c;padding:3px 10px 3px 0;white-space:nowrap">{{ h.host }}</td>
+<td style="padding:3px 0"><table role="presentation" cellpadding="0" cellspacing="0" width="{{ h.width }}%"><tr><td class="bar-acc" height="10" style="height:10px;line-height:10px;font-size:0;background:#5d8fc9;border-radius:2px">&nbsp;</td></tr></table></td>
+<td class="t2" width="130" align="right" style="font-size:13px;color:#444d59;padding:3px 0 3px 10px;white-space:nowrap">{{ h.open|nb }}{% if !h.critical.is_empty() %} · <span class="crit" style="color:#a1132c;font-weight:600">{{ h.critical|nb }}</span>{% endif %}</td></tr>
+{%- endfor %}
+</table></td></tr>
+{%- endif %}
+{%- for s in sections %}
+{%- if loop.first %}
+{% call m::divider() %}{% endcall %}
+<tr><td style="height:16px;line-height:16px;font-size:0">&nbsp;</td></tr>
+{%- endif %}
+<tr><td class="px" style="padding:6px 28px 0">{% call m::heading(&s.heading) %}{% endcall %}
+{%- if !s.note.is_empty() %}<div class="t2" style="font-size:13.5px;color:#444d59;margin:-2px 0 8px">{{ s.note }}</div>{% endif %}</td></tr>
+{%- for c in s.cards %}
+{% call m::card(c) %}{% endcall %}
+{%- endfor %}
+{%- if !s.more.is_empty() %}
+<tr><td class="px t3" style="padding:0 28px 12px;font-size:13px;color:#636c78">{{ s.more }}</td></tr>
+{%- endif %}
+{%- endfor %}
+{%- if !sources.is_empty() %}
+{% call m::divider() %}{% endcall %}
+<tr><td class="px" style="padding:16px 28px 14px">{% call m::heading(t.get1("report-sources", "count", sources.len())) %}{% endcall %}
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+{%- for s in sources %}
+<tr><td class="t1 bd" valign="top" style="padding:7px 8px 7px 0;border-bottom:1px solid #dde1e6;font-size:13.5px;color:#15181c;font-weight:600">{{ s.name }}</td>
+<td class="err bd" valign="top" style="padding:7px 8px 7px 0;border-bottom:1px solid #dde1e6;font-size:13px;color:#a1132c">{{ s.error }}</td>
+<td class="t3 bd" valign="top" style="padding:7px 0;border-bottom:1px solid #dde1e6;font-size:12px;color:#636c78">{{ s.since|nb }}</td></tr>
+{%- endfor %}
+</table></td></tr>
+{%- endif %}
+{% call m::buttons(buttons) %}{% endcall %}
+{% endblock %}

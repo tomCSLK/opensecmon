@@ -1,0 +1,12 @@
+{#- The test mail of the e-mail settings (src/mail/testmail.rs). -#}
+{% extends "mail/base.html" %}
+{% import "mail/macros.html" as m %}
+{% block content %}
+<tr><td class="px" style="padding:20px 28px 6px">{% call m::chip(chip) %}{% endcall %} <span class="t3" style="font-size:13px;color:#636c78;margin-left:4px">{{ when }}</span></td></tr>
+<tr><td class="px" style="padding:4px 28px 14px">
+<div class="t1 h1" style="font-size:22px;line-height:1.3;font-weight:600;color:#15181c">{{ title }}</div>
+<div class="t2" style="font-size:14.5px;color:#444d59;margin-top:4px">{{ t.get("mail-test-by-before") }}<b>{{ by }}</b>{{ t.get("mail-test-by-after") }}</div>
+</td></tr>
+{% call m::facts(facts) %}{% endcall %}
+{% call m::buttons(buttons) %}{% endcall %}
+{% endblock %}

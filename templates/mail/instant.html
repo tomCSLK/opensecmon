@@ -1,0 +1,53 @@
+{#- The instant mail (src/alerts/html.rs): one vulnerability in detail, several as cards. -#}
+{% extends "mail/base.html" %}
+{% import "mail/macros.html" as m %}
+{% block content %}
+{% call m::head(head) %}{% endcall %}
+{%- if let Some(s) = single %}
+{%- if let Some((label, text)) = s.bsi %}
+{% call m::note(label, text) %}{% endcall %}
+{%- endif %}
+{% call m::scale(&s.scale) %}{% endcall %}
+{% call m::facts(&s.facts) %}{% endcall %}
+{% call m::divider() %}{% endcall %}
+<tr><td class="px" style="padding:16px 28px 14px">{% call m::heading(&s.affected_heading) %}{% endcall %}
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+<td class="t3 bd" style="padding:6px 8px 6px 0;border-bottom:1px solid #dde1e6;font-size:12px;color:#636c78">{{ t.get("alert-col-asset") }}</td>
+<td class="t3 bd" style="padding:6px 8px 6px 0;border-bottom:1px solid #dde1e6;font-size:12px;color:#636c78">{{ t.get("alert-col-host") }}</td>
+<td class="t3 bd" style="padding:6px 8px 6px 0;border-bottom:1px solid #dde1e6;font-size:12px;color:#636c78">{{ t.get("alert-col-versions") }}</td>
+<td class="t3 bd hide-s" style="padding:6px 0;border-bottom:1px solid #dde1e6;font-size:12px;color:#636c78">{{ t.get("alert-col-confidence") }}</td>
+</tr>
+{%- for r in s.rows %}
+<tr>
+<td class="t1 bd" valign="top" style="padding:7px 8px 7px 0;border-bottom:1px solid #dde1e6;font-size:13.5px;color:#15181c"><b>{{ r.name }}</b>
+{%- if !r.note.is_empty() %}<div class="t3" style="font-size:12px;color:#636c78">{{ r.note|nb }}</div>{% endif %}</td>
+<td class="t1 bd mono" valign="top" style="padding:7px 8px 7px 0;border-bottom:1px solid #dde1e6;font-size:13px;color:#15181c;font-family:Consolas,Menlo,'Courier New',monospace">{{ r.host }}</td>
+<td class="t1 bd" valign="top" style="padding:7px 8px 7px 0;border-bottom:1px solid #dde1e6;font-size:13px;color:#15181c">
+{%- if !r.have.is_empty() %}<span class="mono" style="font-family:Consolas,Menlo,'Courier New',monospace">{{ r.have }}</span> <span class="t3" style="color:#636c78">→</span> {% endif %}
+{%- if r.fixed.is_empty() %}<span class="t3" style="color:#636c78">{{ t.get("alert-no-fix") }}</span>
+{%- else %}<span class="mono ok" style="font-family:Consolas,Menlo,'Courier New',monospace;color:#1d6b3c;font-weight:600">{{ r.fixed }}</span>{% endif %}</td>
+<td class="t1 bd hide-s" valign="top" style="padding:7px 0;border-bottom:1px solid #dde1e6;font-size:13px;color:#15181c;white-space:nowrap">{{ r.confidence }}</td>
+</tr>
+{%- endfor %}
+</table>
+{%- if !s.more.is_empty() %}
+<div class="t3" style="font-size:12px;color:#636c78;margin-top:6px">{{ s.more }}</div>
+{%- endif %}
+</td></tr>
+{%- if !s.reasons.is_empty() %}
+<tr><td class="px" style="padding:4px 28px 10px">{% call m::heading(t.get("alert-reasons")) %}{% endcall %}{% call m::reasons(&s.reasons) %}{% endcall %}</td></tr>
+{%- endif %}
+{%- else %}
+{%- if !tiles.is_empty() %}
+{% call m::tiles(tiles) %}{% endcall %}
+{%- endif %}
+<tr><td class="px" style="padding:10px 28px 0">{% call m::heading(t.get("alert-worst-first")) %}{% endcall %}</td></tr>
+{%- for c in cards %}
+{% call m::card(c) %}{% endcall %}
+{%- endfor %}
+{%- if !more.is_empty() %}
+<tr><td class="px t3" style="padding:0 28px 12px;font-size:13px;color:#636c78">{{ more }}</td></tr>
+{%- endif %}
+{%- endif %}
+{% call m::buttons(buttons) %}{% endcall %}
+{% endblock %}

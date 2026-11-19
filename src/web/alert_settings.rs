@@ -464,6 +464,7 @@ async fn render_report(
         &state.pool,
         &settings,
         config.language,
+        &state.time_zone,
         now,
         st.last_report_ms,
     )

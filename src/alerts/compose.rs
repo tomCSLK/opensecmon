@@ -16,6 +16,9 @@ const MAX_AFFECTED: usize = 5;
 const MAX_TITLE: usize = 160;
 const MAX_NAME: usize = 80;
 const MAX_ERROR: usize = 200;
+const MAX_SUMMARY: usize = 900;
+/// Hosts the daily report names.
+pub const MAX_HOSTS: usize = 5;
 
 /// Why a match is mailed at once.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -32,10 +35,32 @@ pub enum Reason {
 /// One affected asset or keyword.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Affected {
+    /// Vendor, product and version in one text.
     pub asset: String,
+    /// Vendor and product.
+    pub name: String,
+    pub version: String,
     pub host: String,
     pub fixed: String,
     pub keyword: Option<String>,
+    /// "Debian 13", "Ubuntu 26.04 · Pro" for a package, else empty.
+    pub release: String,
+    /// The confidence of the match (`high`, `medium`, `low`).
+    pub confidence: String,
+}
+
+/// What the instant mail shows of a single CVE beyond its matches (see `alerts::detail`).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Detail {
+    /// Score, version ("3.1") and vector.
+    pub cvss: Option<(f64, String, String)>,
+    /// Probability (0–1) and percentile (0–1).
+    pub epss: Option<(f64, f64)>,
+    /// In CISA KEV: date added and due date (`YYYY-MM-DD`, the due date may be empty).
+    pub kev: Option<(String, String)>,
+    pub published_ms: Option<i64>,
+    /// The German summary of the BSI: advisory id and text.
+    pub bsi: Option<(String, String)>,
 }
 
 /// A vulnerability with its matches.
@@ -51,6 +76,7 @@ pub struct Item {
     pub reasons: Vec<Reason>,
     /// The match ids.
     pub ids: Vec<i64>,
+    pub detail: Option<Detail>,
 }
 
 /// Removes control characters and bidirectional overrides, joins lines and clips the text.
@@ -88,22 +114,36 @@ pub fn label(r: &Row) -> String {
     clean(&text, MAX_NAME)
 }
 
+fn joined(parts: &[&str]) -> String {
+    parts
+        .iter()
+        .filter(|p| !p.is_empty())
+        .copied()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 fn affected(r: &Row) -> Affected {
-    let name = [
-        r.vendor_name.as_deref().unwrap_or_default(),
-        r.product_name.as_deref().unwrap_or_default(),
-        r.version.as_deref().unwrap_or_default(),
-    ]
-    .iter()
-    .filter(|p| !p.is_empty())
-    .copied()
-    .collect::<Vec<_>>()
-    .join(" ");
+    let vendor = r.vendor_name.as_deref().unwrap_or_default();
+    let product = r.product_name.as_deref().unwrap_or_default();
+    let version = r.version.as_deref().unwrap_or_default();
+    let release = match (r.distro.as_deref(), r.release.as_deref()) {
+        (Some(d), Some(rel)) if !d.is_empty() => {
+            let name = crate::storage::assets::Distro::parse(d).map_or(d, |d| d.name());
+            let pro = if r.pro == Some(true) { " · Pro" } else { "" };
+            format!("{name} {rel}{pro}")
+        }
+        _ => String::new(),
+    };
     Affected {
-        asset: clean(&name, MAX_NAME),
+        asset: clean(&joined(&[vendor, product, version]), MAX_NAME),
+        name: clean(&joined(&[vendor, product]), MAX_NAME),
+        version: clean(version, MAX_NAME),
         host: clean(r.host.as_deref().unwrap_or_default(), MAX_NAME),
         fixed: clean(&r.fixed, MAX_NAME),
         keyword: r.keyword.as_deref().map(|k| clean(k, MAX_NAME)),
+        release: clean(&release, MAX_NAME),
+        confidence: r.confidence.clone(),
     }
 }
 
@@ -123,6 +163,7 @@ pub fn group(rows: &[Row], reasons: impl Fn(&Row) -> Vec<Reason>) -> Vec<Item> {
                     affected: Vec::new(),
                     reasons: Vec::new(),
                     ids: Vec::new(),
+                    detail: None,
                 });
                 items.len() - 1
             }
@@ -169,6 +210,131 @@ pub fn local_date(t: Lang, tz: &TimeZone, ms: i64) -> String {
     ts.to_zoned(tz.clone()).strftime(format).to_string()
 }
 
+/// A date of a feed (`YYYY-MM-DD`) as the mails show it; other text cleaned.
+pub fn iso_date(t: Lang, text: &str) -> String {
+    match text
+        .get(..10)
+        .and_then(|d| d.parse::<jiff::civil::Date>().ok())
+    {
+        Some(d) => d
+            .strftime(match t {
+                Lang::De => "%d.%m.%Y",
+                Lang::En => "%Y-%m-%d",
+            })
+            .to_string(),
+        None => clean(text, 20),
+    }
+}
+
+/// What a CVSS vector says about the attack: way in, login, user interaction ("Netzwerk · ohne Anmeldung ·
+/// keine Interaktion"); empty for a vector without these metrics.
+pub fn vector_text(t: Lang, vector: &str) -> String {
+    let mut parts = Vec::new();
+    for metric in vector.split('/') {
+        let id = match metric {
+            "AV:N" => "alert-av-n",
+            "AV:A" => "alert-av-a",
+            "AV:L" => "alert-av-l",
+            "AV:P" => "alert-av-p",
+            "PR:N" => "alert-pr-n",
+            "PR:L" => "alert-pr-l",
+            "PR:H" => "alert-pr-h",
+            "UI:N" => "alert-ui-n",
+            "UI:R" | "UI:P" | "UI:A" => "alert-ui-r",
+            _ => continue,
+        };
+        parts.push(t.get(id));
+    }
+    parts.join(" · ")
+}
+
+/// The severity of a CVSS score as a word in lower case ("kritisch").
+pub fn cvss_word(t: Lang, score: f64) -> String {
+    t.get(crate::mail::view::Tone::of_cvss(score).band().label_id())
+        .to_lowercase()
+}
+
+/// How long ago `ms` was, in whole days ("vor 5 Tagen").
+pub fn days_ago(t: Lang, now_ms: i64, ms: i64) -> String {
+    t.get1("alert-days-ago", "days", (now_ms - ms).max(0) / 86_400_000)
+}
+
+/// "höher als bei 99 % aller CVEs" for a percentile of 0–1.
+pub fn percentile_text(t: Lang, percentile: f64) -> String {
+    let percent = (percentile.clamp(0.0, 1.0) * 100.0).floor();
+    t.get1("alert-epss-percentile", "percent", t.decimal(percent, 0))
+}
+
+/// The detail of a single vulnerability as lines of text (instant mail).
+fn detail_lines(t: Lang, clock: &Clock, d: &Detail, out: &mut Vec<String>) {
+    if let Some((id, summary)) = &d.bsi {
+        out.push(format!(
+            "  {}: {}",
+            t.get1("alert-bsi", "id", clean(id, MAX_NAME)),
+            clean(summary, MAX_SUMMARY)
+        ));
+    }
+    if let Some((score, version, vector)) = &d.cvss {
+        let how = vector_text(t, vector);
+        let how = if how.is_empty() {
+            String::new()
+        } else {
+            format!(" · {how}")
+        };
+        out.push(format!(
+            "  {}: {} ({}){how}",
+            t.get1("alert-cvss", "version", clean(version, 10)),
+            t.decimal(*score, 1),
+            cvss_word(t, *score)
+        ));
+    }
+    if let Some((epss, percentile)) = d.epss {
+        out.push(format!(
+            "  EPSS: {} % ({})",
+            t.decimal(epss * 100.0, 1),
+            percentile_text(t, percentile)
+        ));
+    }
+    if let Some((added, due)) = &d.kev {
+        let mut line = format!(
+            "  CISA KEV: {}",
+            t.get1("alert-kev-since", "date", iso_date(t, added))
+        );
+        if !due.is_empty() {
+            line.push_str(", ");
+            line.push_str(&t.get1("alert-kev-due", "date", iso_date(t, due)));
+        }
+        out.push(line);
+    }
+    if let Some(ms) = d.published_ms {
+        out.push(format!(
+            "  {}: {} ({})",
+            t.get("alert-published"),
+            local_date(t, clock.tz, ms),
+            days_ago(t, clock.now_ms, ms)
+        ));
+    }
+}
+
+/// When a mail goes out: local time and zone.
+pub struct Clock<'a> {
+    pub tz: &'a TimeZone,
+    pub now_ms: i64,
+}
+
+impl Clock<'_> {
+    /// "19.11.2026 07:12 (Europe/Berlin)".
+    pub fn text(&self, t: Lang) -> String {
+        let zone = crate::mail::view::zone_name(self.tz);
+        let time = local_time(t, self.tz, self.now_ms);
+        if zone.is_empty() {
+            time
+        } else {
+            format!("{time} ({zone})")
+        }
+    }
+}
+
 fn encode(value: &str) -> String {
     crate::web::cves::encode(value)
 }
@@ -177,20 +343,34 @@ fn encode(value: &str) -> String {
 pub struct Links<'a>(pub Option<&'a str>);
 
 impl Links<'_> {
-    fn inbox(&self) -> Option<String> {
+    pub fn inbox(&self) -> Option<String> {
         self.0.map(|base| format!("{base}/"))
     }
 
-    fn item(&self, vuln: &str) -> Option<String> {
+    pub fn item(&self, vuln: &str) -> Option<String> {
         self.0.map(|base| format!("{base}/?sel={}", encode(vuln)))
     }
 
-    fn page(&self, path: &str) -> Option<String> {
+    /// The page of a CVE (only for CVE ids).
+    pub fn cve(&self, vuln: &str) -> Option<String> {
+        if vuln.starts_with("CVE-") {
+            self.0.map(|base| format!("{base}/cves/{}", encode(vuln)))
+        } else {
+            None
+        }
+    }
+
+    pub fn page(&self, path: &str) -> Option<String> {
         self.0.map(|base| format!("{base}{path}"))
+    }
+
+    /// The address of the interface, `None` without one.
+    pub fn base(&self) -> Option<&str> {
+        self.0
     }
 }
 
-fn reason_text(t: Lang, r: &Reason) -> String {
+pub fn reason_text(t: Lang, r: &Reason) -> String {
     match *r {
         Reason::Kev => t.get("alert-reason-kev"),
         Reason::Prio(p, min) => t.get2("alert-reason-prio", "prio", p, "min", min),
@@ -238,11 +418,21 @@ fn head(t: Lang, i: &Item) -> String {
     )
 }
 
-/// One item with its affected assets (and the reasons, for the instant mail).
-fn item_lines(t: Lang, i: &Item, links: &Links, with_reasons: bool, out: &mut Vec<String>) {
+/// One item with its affected assets (and the reasons and the detail, for the instant mail).
+fn item_lines(
+    t: Lang,
+    clock: &Clock,
+    i: &Item,
+    links: &Links,
+    with_reasons: bool,
+    out: &mut Vec<String>,
+) {
     out.push(head(t, i));
     if !i.title.is_empty() {
         out.push(format!("  {}", i.title));
+    }
+    if with_reasons && let Some(d) = &i.detail {
+        detail_lines(t, clock, d, out);
     }
     for a in i.affected.iter().take(MAX_AFFECTED) {
         out.push(format!("  - {}", affected_text(t, a)));
@@ -269,9 +459,16 @@ fn item_lines(t: Lang, i: &Item, links: &Links, with_reasons: bool, out: &mut Ve
     }
 }
 
-fn items_lines(t: Lang, items: &[Item], links: &Links, with_reasons: bool, out: &mut Vec<String>) {
+fn items_lines(
+    t: Lang,
+    clock: &Clock,
+    items: &[Item],
+    links: &Links,
+    with_reasons: bool,
+    out: &mut Vec<String>,
+) {
     for i in items.iter().take(MAX_ITEMS) {
-        item_lines(t, i, links, with_reasons, out);
+        item_lines(t, clock, i, links, with_reasons, out);
         out.push(String::new());
     }
     if items.len() > MAX_ITEMS {
@@ -299,7 +496,7 @@ pub struct Mail {
 }
 
 /// The instant mail for new matches (`items` is not empty).
-pub fn instant(t: Lang, items: &[Item], links: &Links) -> Mail {
+pub fn instant(t: Lang, clock: &Clock, items: &[Item], links: &Links) -> Mail {
     let ids: Vec<&str> = items.iter().take(3).map(|i| i.label.as_str()).collect();
     let mut list = ids.join(", ");
     if items.len() > 3 {
@@ -325,8 +522,12 @@ pub fn instant(t: Lang, items: &[Item], links: &Links) -> Mail {
             )
         )
     };
-    let mut out = vec![t.get1("alert-intro", "count", items.len()), String::new()];
-    items_lines(t, items, links, true, &mut out);
+    let mut out = vec![
+        t.get1("alert-intro", "count", items.len()),
+        clock.text(t),
+        String::new(),
+    ];
+    items_lines(t, clock, items, links, true, &mut out);
     footer(t, links, "/settings/alerts", &mut out);
     Mail {
         subject,
@@ -353,6 +554,19 @@ pub struct Report {
     pub sources: Option<Vec<FailedSource>>,
     /// Open vulnerabilities in the inbox.
     pub open_total: usize,
+    /// Open vulnerabilities per day by band, the last entry today (see `situation::trend`).
+    pub trend: Vec<crate::situation::Day>,
+    /// The hosts with the most open vulnerabilities, at most [`MAX_HOSTS`].
+    pub hosts: Vec<HostCount>,
+}
+
+/// A host with open matches (daily report): distinct vulnerabilities, and of them those with priority
+/// ≥ 85 or in KEV.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostCount {
+    pub host: String,
+    pub open: usize,
+    pub critical: usize,
 }
 
 impl Report {
@@ -363,6 +577,58 @@ impl Report {
             && self.due.as_ref().is_none_or(Vec::is_empty)
             && self.sources.as_ref().is_none_or(Vec::is_empty)
     }
+
+    /// Open vulnerabilities today minus yesterday, `None` without a trend.
+    pub fn change(&self) -> Option<i64> {
+        match self.trend.as_slice() {
+            [.., yesterday, today] => Some(today.counts.total() - yesterday.counts.total()),
+            _ => None,
+        }
+    }
+}
+
+/// "Im Eingang sind 38 Meldungen offen, 3 mehr als gestern."
+pub fn open_line(t: Lang, r: &Report) -> String {
+    let line = t.get1("report-open-total", "count", r.open_total);
+    match r.change() {
+        Some(change) => format!(
+            "{}, {}.",
+            line.trim_end_matches('.'),
+            change_text(t, change)
+        ),
+        None => line,
+    }
+}
+
+/// "3 mehr als gestern" and the like.
+pub fn change_text(t: Lang, change: i64) -> String {
+    match change {
+        0 => t.get("report-change-same"),
+        c if c > 0 => t.get1("report-change-up", "count", c),
+        c => t.get1("report-change-down", "count", -c),
+    }
+}
+
+/// "desktop01 14 (3 kritisch), server01 11" for the hosts of the report.
+fn hosts_text(t: Lang, hosts: &[HostCount]) -> String {
+    hosts
+        .iter()
+        .map(|h| {
+            if h.critical > 0 {
+                t.fmt(
+                    "report-host-critical",
+                    &[
+                        ("host", Arg::from(h.host.clone())),
+                        ("count", Arg::from(h.open)),
+                        ("critical", Arg::from(h.critical)),
+                    ],
+                )
+            } else {
+                t.get2("report-host", "host", h.host.clone(), "count", h.open)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// The daily report.
@@ -381,11 +647,15 @@ pub fn report(t: Lang, tz: &TimeZone, r: &Report, links: &Links) -> Mail {
             ]
         )
     );
-    let mut out = vec![
-        t.get1("report-intro", "date", date),
-        t.get1("report-open-total", "count", r.open_total),
-        String::new(),
-    ];
+    let clock = Clock {
+        tz,
+        now_ms: r.now_ms,
+    };
+    let mut out = vec![t.get1("report-intro", "date", date), open_line(t, r)];
+    if !r.hosts.is_empty() {
+        out.push(t.get1("report-hosts-line", "hosts", hosts_text(t, &r.hosts)));
+    }
+    out.push(String::new());
     if r.is_empty() {
         out.push(t.get("report-nothing"));
         out.push(String::new());
@@ -394,7 +664,7 @@ pub fn report(t: Lang, tz: &TimeZone, r: &Report, links: &Links) -> Mail {
         let since = local_time(t, tz, r.since_ms);
         out.push(t.get2("report-new", "since", since, "count", items.len()));
         out.push(String::new());
-        items_lines(t, items, links, false, &mut out);
+        items_lines(t, &clock, items, links, false, &mut out);
     }
     if let Some(items) = r.open.as_ref().filter(|i| !i.is_empty()) {
         // What the part "new" already lists is not repeated.
@@ -415,12 +685,12 @@ pub fn report(t: Lang, tz: &TimeZone, r: &Report, links: &Links) -> Mail {
             out.push(t.get1("report-open-above", "count", items.len() - rest.len()));
         }
         out.push(String::new());
-        items_lines(t, &rest, links, false, &mut out);
+        items_lines(t, &clock, &rest, links, false, &mut out);
     }
     if let Some(items) = r.due.as_ref().filter(|i| !i.is_empty()) {
         out.push(t.get1("report-due", "count", items.len()));
         out.push(String::new());
-        items_lines(t, items, links, false, &mut out);
+        items_lines(t, &clock, items, links, false, &mut out);
     }
     if let Some(sources) = r.sources.as_ref().filter(|s| !s.is_empty()) {
         out.push(t.get1("report-sources", "count", sources.len()));
@@ -544,7 +814,15 @@ mod tests {
                 vec![Reason::Prio(86, 85)]
             }
         });
-        let mail = instant(Lang::De, &items, &Links(Some("https://sec.example.org")));
+        let mail = instant(
+            Lang::De,
+            &Clock {
+                tz: &TimeZone::UTC,
+                now_ms: 0,
+            },
+            &items,
+            &Links(Some("https://sec.example.org")),
+        );
         assert!(
             mail.subject.starts_with("[opensecmon] 2 neue Treffer"),
             "{}",
@@ -571,7 +849,15 @@ mod tests {
                 .contains("https://sec.example.org/settings/alerts")
         );
 
-        let one = instant(Lang::En, &items[..1], &Links(None));
+        let one = instant(
+            Lang::En,
+            &Clock {
+                tz: &TimeZone::UTC,
+                now_ms: 0,
+            },
+            &items[..1],
+            &Links(None),
+        );
         assert_eq!(one.subject, "[opensecmon] New match: CVE-2026-0001 (KEV)");
         assert!(!one.body.contains("http"), "{}", one.body);
     }
@@ -582,7 +868,15 @@ mod tests {
             .map(|i| row(i, &format!("CVE-2026-{i:04}"), 90, false, "h"))
             .collect();
         let items = group(&rows, |_| vec![]);
-        let mail = instant(Lang::En, &items, &Links(None));
+        let mail = instant(
+            Lang::En,
+            &Clock {
+                tz: &TimeZone::UTC,
+                now_ms: 0,
+            },
+            &items,
+            &Links(None),
+        );
         assert!(
             mail.body.contains("… and 5 more in the inbox"),
             "{}",
@@ -592,7 +886,15 @@ mod tests {
             .map(|i| row(i, "CVE-2026-0001", 90, false, &format!("h{i}")))
             .collect();
         let items = group(&hosts, |_| vec![]);
-        let mail = instant(Lang::En, &items, &Links(None));
+        let mail = instant(
+            Lang::En,
+            &Clock {
+                tz: &TimeZone::UTC,
+                now_ms: 0,
+            },
+            &items,
+            &Links(None),
+        );
         assert!(mail.body.contains("and 3 more"), "{}", mail.body);
     }
 
@@ -614,6 +916,8 @@ mod tests {
                 last_success_ms: Some(now - 3_600_000),
             }]),
             open_total: 4,
+            trend: Vec::new(),
+            hosts: Vec::new(),
         };
         assert!(!report_data.is_empty());
         let mail = report(Lang::De, &tz, &report_data, &Links(None));

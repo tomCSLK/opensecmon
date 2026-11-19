@@ -1,12 +1,17 @@
 //! Outgoing e-mail: settings, validation and the SMTP client. User-facing messages are catalog messages.
+//!
+//! A [`Mail`] is a plain-text part and, optionally, an HTML part with inline images (`cid:`); it goes
+//! out as `multipart/alternative` (text, then `multipart/related` with the HTML and its images).
 
+pub mod testmail;
 #[cfg(test)]
 pub(crate) mod testsmtp;
+pub mod view;
 
 use std::time::Duration;
 
 use lettre::message::header::ContentType;
-use lettre::message::{Mailbox, MessageBuilder};
+use lettre::message::{Attachment, Mailbox, MessageBuilder, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Address, AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
@@ -245,13 +250,63 @@ impl MailError {
     }
 }
 
-fn build_message(config: &MailConfig, subject: &str, body: &str) -> Result<Message, MailError> {
+/// Text for a mail header: control characters (CR, LF, tabs …) become spaces, runs of white space
+/// one space, and the result is cut to `max` characters (with "…").
+pub fn header_text(text: &str, max: usize) -> String {
+    let cleaned: String = text
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let joined = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+    if joined.chars().count() > max {
+        let cut: String = joined.chars().take(max.saturating_sub(1)).collect();
+        format!("{}…", cut.trim_end())
+    } else {
+        joined
+    }
+}
+
+/// An image the HTML part shows with `<img src="cid:…">`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InlineImage {
+    /// Without angle brackets, e.g. `logo@opensecmon`.
+    pub content_id: String,
+    /// e.g. `image/png`.
+    pub content_type: &'static str,
+    pub data: Vec<u8>,
+}
+
+/// A complete mail: subject, plain text and optionally HTML with its inline images.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mail {
+    pub subject: String,
+    pub text: String,
+    /// `None`: a plain-text mail.
+    pub html: Option<String>,
+    pub inline: Vec<InlineImage>,
+}
+
+impl Mail {
+    /// A mail with only a text part.
+    pub fn plain(subject: impl Into<String>, text: impl Into<String>) -> Self {
+        Self {
+            subject: subject.into(),
+            text: text.into(),
+            html: None,
+            inline: Vec::new(),
+        }
+    }
+}
+
+fn build_message(config: &MailConfig, mail: &Mail) -> Result<Message, MailError> {
     let bad = |id: &'static str| MailError::Config(Msg::new(id));
+    let invalid = |e: String| MailError::Config(Msg::new("mail-message-invalid").with("detail", e));
     let from: Mailbox = config
         .from_address
         .parse::<Address>()
         .map(|a| Mailbox::new(Some("opensecmon".to_owned()), a))
         .map_err(|_| bad("mail-from-invalid"))?;
+    let subject = header_text(&mail.subject, 250);
     let mut builder: MessageBuilder = Message::builder().from(from).subject(subject);
     if config.recipients.is_empty() {
         return Err(MailError::Config(Msg::new("mail-no-recipients")));
@@ -262,12 +317,29 @@ fn build_message(config: &MailConfig, subject: &str, body: &str) -> Result<Messa
             .map_err(|_| bad("mail-recipient-invalid"))?;
         builder = builder.to(Mailbox::new(None, address));
     }
-    builder
-        .header(ContentType::TEXT_PLAIN)
-        .body(body.to_owned())
-        .map_err(|e| {
-            MailError::Config(Msg::new("mail-message-invalid").with("detail", e.to_string()))
-        })
+    let Some(html) = &mail.html else {
+        return builder
+            .header(ContentType::TEXT_PLAIN)
+            .body(mail.text.clone())
+            .map_err(|e| invalid(e.to_string()));
+    };
+    let html_part = SinglePart::html(html.clone());
+    let body = MultiPart::alternative().singlepart(SinglePart::plain(mail.text.clone()));
+    let body = if mail.inline.is_empty() {
+        body.singlepart(html_part)
+    } else {
+        let mut related = MultiPart::related().singlepart(html_part);
+        for image in &mail.inline {
+            let content_type =
+                ContentType::parse(image.content_type).map_err(|e| invalid(e.to_string()))?;
+            related = related.singlepart(
+                Attachment::new_inline(image.content_id.clone())
+                    .body(image.data.clone(), content_type),
+            );
+        }
+        body.multipart(related)
+    };
+    builder.multipart(body).map_err(|e| invalid(e.to_string()))
 }
 
 fn transport(config: &MailConfig) -> Result<AsyncSmtpTransport<Tokio1Executor>, MailError> {
@@ -298,12 +370,12 @@ fn describe(error: impl std::fmt::Display) -> String {
     }
 }
 
-/// Sends one plain-text mail to all recipients.
-pub async fn send(config: &MailConfig, subject: &str, body: &str) -> Result<(), MailError> {
+/// Sends one mail to all recipients.
+pub async fn send(config: &MailConfig, mail: &Mail) -> Result<(), MailError> {
     if config.host.is_empty() {
         return Err(MailError::Config(Msg::new("mail-no-server")));
     }
-    let message = build_message(config, subject, body)?;
+    let message = build_message(config, mail)?;
     let transport = transport(config)?;
     match tokio::time::timeout(SEND_DEADLINE, transport.send(message)).await {
         Ok(Ok(_)) => Ok(()),
@@ -449,8 +521,10 @@ mod tests {
         let smtp = TestSmtp::spawn(Behavior::default()).await;
         send(
             &config(smtp.port),
-            "[opensecmon] Ausfall: Test",
-            "Zeile 1\n.Zeile mit Punkt\nÄÖÜ",
+            &Mail::plain(
+                "[opensecmon] Ausfall: Test",
+                "Zeile 1\n.Zeile mit Punkt\nÄÖÜ",
+            ),
         )
         .await
         .unwrap();
@@ -484,11 +558,11 @@ mod tests {
         let mut c = config(smtp.port);
         c.username = Some("user".to_owned());
         c.password = Some(Secret::new("pw-123"));
-        send(&c, "s", "b").await.unwrap();
+        send(&c, &Mail::plain("s", "b")).await.unwrap();
         assert_eq!(smtp.received()[0].auth_user.as_deref(), Some("user"));
 
         c.password = Some(Secret::new("wrong-pw"));
-        let err = send(&c, "s", "b").await.unwrap_err();
+        let err = send(&c, &Mail::plain("s", "b")).await.unwrap_err();
         assert!(matches!(err, MailError::Send(_)), "{err:?}");
         assert!(!err.user_message().to_string().contains("wrong-pw"));
         assert_eq!(smtp.received().len(), 1);
@@ -501,7 +575,9 @@ mod tests {
             ..Behavior::default()
         })
         .await;
-        let err = send(&config(smtp.port), "s", "b").await.unwrap_err();
+        let err = send(&config(smtp.port), &Mail::plain("s", "b"))
+            .await
+            .unwrap_err();
         assert!(
             err.user_message()
                 .to_string()
@@ -513,7 +589,7 @@ mod tests {
         let port = closed.local_addr().unwrap().port();
         drop(closed);
         assert!(matches!(
-            send(&config(port), "s", "b").await,
+            send(&config(port), &Mail::plain("s", "b")).await,
             Err(MailError::Send(_))
         ));
     }
@@ -523,14 +599,71 @@ mod tests {
         let mut c = config(25);
         c.host.clear();
         assert!(matches!(
-            send(&c, "s", "b").await,
+            send(&c, &Mail::plain("s", "b")).await,
             Err(MailError::Config(_))
         ));
         let mut c = config(25);
         c.recipients.clear();
         assert!(matches!(
-            send(&c, "s", "b").await,
+            send(&c, &Mail::plain("s", "b")).await,
             Err(MailError::Config(_))
         ));
+    }
+
+    #[test]
+    fn header_text_has_no_line_breaks_and_a_limit() {
+        assert_eq!(
+            header_text("[opensecmon] a\r\nBcc: x@example.org\t b", 100),
+            "[opensecmon] a Bcc: x@example.org b"
+        );
+        assert_eq!(header_text("\u{7}a\u{1b}b", 100), "a b");
+        assert_eq!(header_text("abcdefghij", 5), "abcd…");
+        assert_eq!(header_text("abc", 5), "abc");
+    }
+
+    #[tokio::test]
+    async fn html_mails_carry_text_html_and_the_inline_logo() {
+        let smtp = TestSmtp::spawn(Behavior::default()).await;
+        let mail = Mail {
+            subject: "[opensecmon] Test\r\nBcc: evil@example.org".to_owned(),
+            text: "Klartext".to_owned(),
+            html: Some(format!(
+                "<html><body><img src=\"cid:{}\">HTML-Teil</body></html>",
+                view::LOGO_CID
+            )),
+            inline: vec![view::logo()],
+        };
+        send(&config(smtp.port), &mail).await.unwrap();
+        let received = &smtp.received()[0];
+        let data = &received.data;
+        assert!(
+            data.contains("Content-Type: multipart/alternative"),
+            "{data}"
+        );
+        assert!(data.contains("Content-Type: multipart/related"), "{data}");
+        assert!(data.contains("Content-ID: <logo@opensecmon>"), "{data}");
+        assert!(data.contains("Content-Disposition: inline"), "{data}");
+        assert!(data.contains("Content-Type: image/png"), "{data}");
+        assert_eq!(
+            received.subject(),
+            "[opensecmon] Test Bcc: evil@example.org"
+        );
+        assert!(!data.contains("\nBcc:"), "no injected header");
+        assert_eq!(received.part("text/plain").as_deref(), Some("Klartext"));
+        assert!(
+            received
+                .part("text/html")
+                .is_some_and(|h| h.contains("HTML-Teil") && h.contains("cid:logo@opensecmon"))
+        );
+
+        // Without images, no related part.
+        let smtp = TestSmtp::spawn(Behavior::default()).await;
+        let mail = Mail {
+            inline: Vec::new(),
+            ..mail
+        };
+        send(&config(smtp.port), &mail).await.unwrap();
+        let data = &smtp.received()[0].data;
+        assert!(data.contains("multipart/alternative") && !data.contains("multipart/related"));
     }
 }

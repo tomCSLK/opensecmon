@@ -7,6 +7,7 @@
 //! is not caught up.
 
 pub mod compose;
+pub mod html;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,12 +20,14 @@ use crate::crypto::SecretBox;
 use crate::error::Result;
 use crate::i18n::{Lang, Msg};
 use crate::mail::{self, MailConfig};
+use crate::situation;
 use crate::sources::{SourceId, now_ms};
 use crate::storage::alerts::{self as store, Settings};
 use crate::storage::mail::{self as mail_store, Kind};
 use crate::storage::matches::{self, Row, State};
 use crate::storage::sources as source_store;
-use compose::{FailedSource, Links, Reason};
+use crate::storage::{advisory_list, cve_list};
+use compose::{Clock, Detail, FailedSource, HostCount, Links, Reason};
 
 const TICK: Duration = Duration::from_secs(60);
 /// How long the first match of a bundle waits for others.
@@ -156,8 +159,44 @@ async fn candidates(pool: &SqlitePool, s: &Settings, now: i64) -> Result<Vec<Row
     Ok(rest)
 }
 
+/// What the instant mail shows of a single CVE beyond its matches: CVSS, EPSS, KEV, the date and (in German)
+/// the summary of the BSI. `None` for other ids or an unknown CVE.
+pub async fn detail(pool: &SqlitePool, t: Lang, vuln: &str) -> Result<Option<Detail>> {
+    if !vuln.starts_with("CVE-") {
+        return Ok(None);
+    }
+    let Some(d) = cve_list::detail(pool, vuln).await? else {
+        return Ok(None);
+    };
+    let bsi = if t == Lang::De {
+        let advisories = advisory_list::for_cve(pool, vuln).await?;
+        crate::web::cves::bsi_text(&advisories, &d.products)
+    } else {
+        None
+    };
+    let r = d.record;
+    Ok(Some(Detail {
+        cvss: r.cvss_score.map(|score| {
+            (
+                score,
+                r.cvss_version.unwrap_or_default(),
+                r.cvss_vector.unwrap_or_default(),
+            )
+        }),
+        epss: r.epss.zip(r.epss_percentile),
+        kev: d.kev.map(|k| (k.date_added, k.due_date)),
+        published_ms: r.published_ms,
+        bsi,
+    }))
+}
+
 /// One round of the instant mail.
-pub async fn instant_round(pool: &SqlitePool, secrets: &SecretBox, now: i64) -> Result<Instant> {
+pub async fn instant_round(
+    pool: &SqlitePool,
+    secrets: &SecretBox,
+    tz: &TimeZone,
+    now: i64,
+) -> Result<Instant> {
     let config = mail_store::load_config(pool, secrets).await?;
     let settings = store::settings(pool).await?;
     let mut state = store::state(pool).await?;
@@ -214,8 +253,12 @@ pub async fn instant_round(pool: &SqlitePool, secrets: &SecretBox, now: i64) -> 
         store::save_alert_state(pool, &state).await?;
         return Ok(Instant::Waiting(rows.len()));
     }
-    let items = compose::group(&rows, |r| reasons(&settings, r));
-    let message = compose::instant(config.language, &items, &links(&settings));
+    let mut items = compose::group(&rows, |r| reasons(&settings, r));
+    if let [item] = items.as_mut_slice() {
+        item.detail = detail(pool, config.language, &item.vuln).await?;
+    }
+    let clock = Clock { tz, now_ms: now };
+    let message = html::instant(config.language, &clock, &items, &links(&settings));
     let outcome = deliver(pool, &config, Kind::Match, &message, now).await?;
     if outcome.is_ok() {
         let ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
@@ -240,10 +283,10 @@ async fn deliver(
     pool: &SqlitePool,
     config: &MailConfig,
     kind: Kind,
-    message: &compose::Mail,
+    message: &mail::Mail,
     now: i64,
 ) -> Result<std::result::Result<(), Msg>> {
-    let outcome = mail::send(config, &message.subject, &message.body)
+    let outcome = mail::send(config, message)
         .await
         .map_err(|e| e.user_message());
     match &outcome {
@@ -267,11 +310,53 @@ fn unmuted(rows: Vec<Row>) -> Vec<Row> {
     rows.into_iter().filter(|r| !r.muted()).collect()
 }
 
+/// The hosts with the most open vulnerabilities (without those below the priority of their asset).
+fn top_hosts(open: &[Row]) -> Vec<HostCount> {
+    let mut by_host: std::collections::BTreeMap<&str, (Vec<&str>, Vec<&str>)> =
+        std::collections::BTreeMap::new();
+    for r in open.iter().filter(|r| !r.muted()) {
+        let Some(host) = r.host.as_deref().filter(|h| !h.is_empty()) else {
+            continue;
+        };
+        let (all, critical) = by_host.entry(host).or_default();
+        all.push(&r.vuln);
+        if r.kev || r.prio() >= CRITICAL {
+            critical.push(&r.vuln);
+        }
+    }
+    let mut hosts: Vec<HostCount> = by_host
+        .into_iter()
+        .map(|(host, (mut all, mut critical))| {
+            all.sort_unstable();
+            all.dedup();
+            critical.sort_unstable();
+            critical.dedup();
+            HostCount {
+                host: compose::clean(host, 80),
+                open: all.len(),
+                critical: critical.len(),
+            }
+        })
+        .collect();
+    hosts.sort_by(|a, b| {
+        b.open
+            .cmp(&a.open)
+            .then(b.critical.cmp(&a.critical))
+            .then_with(|| a.host.cmp(&b.host))
+    });
+    hosts.truncate(compose::MAX_HOSTS);
+    hosts
+}
+
+/// Days of the trend in the daily report.
+const TREND_DAYS: i32 = 14;
+
 /// The content of the daily report as of `now`, in language `t`.
 pub async fn build_report(
     pool: &SqlitePool,
     settings: &Settings,
     t: Lang,
+    tz: &TimeZone,
     now: i64,
     last_report_ms: Option<i64>,
 ) -> Result<compose::Report> {
@@ -321,6 +406,10 @@ pub async fn build_report(
         None
     };
     let open_total = usize::try_from(matches::open_count(pool).await?).unwrap_or(0);
+    let all = matches::rows(pool, &situation::ALL_STATES).await?;
+    let trend = situation::trend(pool, &all, tz, now, TREND_DAYS).await?;
+    let open_rows: Vec<Row> = all.into_iter().filter(situation::open_now).collect();
+    let hosts = top_hosts(&open_rows);
     Ok(compose::Report {
         now_ms: now,
         since_ms,
@@ -329,6 +418,8 @@ pub async fn build_report(
         due,
         sources,
         open_total,
+        trend,
+        hosts,
     })
 }
 
@@ -379,14 +470,22 @@ pub async fn report_round(
     if slot <= state.report_slot_ms || now < state.report_retry_ms {
         return Ok(Report::NotYet);
     }
-    let data = build_report(pool, &settings, config.language, now, state.last_report_ms).await?;
+    let data = build_report(
+        pool,
+        &settings,
+        config.language,
+        tz,
+        now,
+        state.last_report_ms,
+    )
+    .await?;
     if settings.report_skip_empty && data.is_empty() {
         tracing::info!("daily report: nothing to report");
         state.report_slot_ms = slot;
         store::save_report_state(pool, &state).await?;
         return Ok(Report::Skipped);
     }
-    let message = compose::report(config.language, tz, &data, &links(&settings));
+    let message = html::report(config.language, tz, &data, &links(&settings));
     let outcome = deliver(pool, &config, Kind::Report, &message, now).await?;
     if outcome.is_ok() {
         state.report_slot_ms = slot;
@@ -416,8 +515,16 @@ pub async fn send_report_now(
     let config = mail_store::load_config(pool, secrets).await?;
     let settings = store::settings(pool).await?;
     let mut state = store::state(pool).await?;
-    let data = build_report(pool, &settings, config.language, now, state.last_report_ms).await?;
-    let message = compose::report(config.language, tz, &data, &links(&settings));
+    let data = build_report(
+        pool,
+        &settings,
+        config.language,
+        tz,
+        now,
+        state.last_report_ms,
+    )
+    .await?;
+    let message = html::report(config.language, tz, &data, &links(&settings));
     let outcome = deliver(pool, &config, Kind::Report, &message, now).await?;
     if outcome.is_ok() {
         state.last_report_ms = Some(now);
@@ -439,7 +546,7 @@ impl Notifier {
             loop {
                 tick.tick().await;
                 let now = now_ms();
-                if let Err(e) = instant_round(&pool, &secrets, now).await {
+                if let Err(e) = instant_round(&pool, &secrets, &tz, now).await {
                     tracing::error!(error = %e, "instant mail round failed");
                 }
                 if let Err(e) = report_round(&pool, &secrets, &tz, now).await {
