@@ -849,6 +849,44 @@ Entschieden („go“ 2026-11-09): macOS, watchOS, tvOS und visionOS kommen mit,
   roh in „Laut Datensatz betroffen“. „Windows 10 Servers Version 1803“ (Name von 2018) steht unter den Servern
   zuletzt.
 
+## Vorhaben: Moderne E-Mails (HTML wie opennetmon 0.7.0, Entwurf 2026-11-19, „so umsetzen“ 2026-11-19, umgesetzt)
+
+Entwurf (lokal, nicht im Repo): `docs/entwurf/mail/index.html`, vom Nutzer abgenommen („die email kannst du so
+umsetzen“). Rahmen, Farben und Aufbau wie die HTML-Mails von opennetmon 0.7.0 (Vorhaben R dort), aber ohne
+gezeichnetes Bild: opensecmon hat keine Messreihe je Treffer, Skala, Balken und Verlauf sind HTML-Tabellenzellen.
+Keine neue Abhängigkeit, keine Migration.
+
+### Umsetzung (2026-11-19) ✓
+
+- ✓ `mail::Mail` mit Klartext, HTML und eingebetteten Bildern: `multipart/alternative` (Text, dann
+  `multipart/related` mit HTML und Logo als `cid:`), Betreff über `mail::header_text` ohne Zeilenumbrüche. Aus
+  opennetmon übernommen und angepasst, ebenso die Hilfen des Test-SMTP-Servers (`subject()`, `part()`).
+- ✓ Bausteine in `src/mail/view.rs` (Töne der Stufen, Chip, Kennzahl mit Balken, Knöpfe, Rahmen, Filter `nb`,
+  Logo `src/mail/logo.png` aus `static/favicon.svg`), Vorlagen in `templates/mail/` (`base.html` mit Dunkelmodus und
+  Handy-Ansicht, `macros.html`, `instant.html`, `report.html`, `test.html`).
+- ✓ Sofort-Mail mit **einer** Schwachstelle (`src/alerts/html.rs`): Farbband und Chip der Stufe, KEV-Chip, CVE groß,
+  Titel, deutsche Kurzfassung des BSI (nur bei deutschen Mails, Auswahl wie im CVE-Detail, `web::cves::bsi_text`),
+  Skala der Priorität 0–100, Kennzahlen CVSS (mit Schwere und Angriffsweg aus dem Vektor), EPSS mit Perzentil, KEV
+  seit/Frist, veröffentlicht vor N Tagen (`alerts::detail`), Tabelle „Betroffen“ (Asset, Release, Host, installiert →
+  behoben, Vertrauen), „Gemeldet, weil“ als Chips, Knöpfe „Im Eingang öffnen“ und „CVE-Detail“.
+- ✓ Sofort-Mail mit **mehreren** Schwachstellen: Zähler je Stufe, KEV und Hosts als Kacheln, je Schwachstelle eine
+  Karte (schlimmste zuerst, bis zu 3 Assets, Gründe), höchstens 25 wie bisher.
+- ✓ Tagesbericht: Kacheln der eingeschalteten Teile, Verlauf der offenen Schwachstellen über 14 Tage nach Stufe
+  (`situation::trend`), die 5 meistbetroffenen Hosts (offen, davon kritisch), Abschnitte wie bisher als Karten,
+  Quellen mit Fehlern als Tabelle; ohne Meldungen „Ruhiger Tag“ in Grün mit Verlauf.
+- ✓ Test-E-Mail im neuen Aussehen: Server, Port, Verschlüsselung, Anmeldung, Empfänger, Bedingungen der Sofort-Mail,
+  Uhrzeit des Tagesberichts, Sprache, wer sie ausgelöst hat.
+- ✓ Klartext bleibt als erster Teil: jetzt mit Ortszeit und Zone, bei einer Schwachstelle mit Kurzfassung und
+  Kennzahlen, im Tagesbericht mit Veränderung zum Vortag und den meistbetroffenen Hosts. Die Vorschau auf der Seite
+  „Tagesbericht“ zeigt weiter den Klartext.
+- ✓ Links nur mit eingetragener Adresse der Oberfläche; Texte aus Feeds und Hosts bereinigt und in den Vorlagen
+  escaped (Test mit `<script>` im Titel). Schlägt das HTML fehl, geht die Mail als reiner Text hinaus.
+- ✓ Vorschau: `cargo test --lib mail_preview -- --ignored` → `target/mail-preview/{one,many,report,quiet,test}.{html,txt}`.
+- ✓ Tests: 461 (neu u. a. Multipart mit Logo, Escaping, Einzel- und Sammelmail, Bericht, Test-Mail).
+- Abweichungen vom Entwurf: Datum ohne Wochentag; „gebündelt seit“ und die Quellen einer CVE fehlen in der Kopfzeile;
+  inaktive Stufen der Skala in der hellen Hintergrundfarbe statt halbtransparent (Mailprogramme kennen `opacity` nicht
+  zuverlässig); „Zurückgestellt“ ohne den Grund der Zurückstellung.
+
 ## Abweichungen vom Entwurf und Entscheidungen der Umsetzung
 
 Stand Phase 1 (2026-11-05):
@@ -1052,7 +1090,7 @@ Stand Phase 7 (2026-11-06):
   Treffer, die vor der Mail erledigt oder ignoriert wurden, gehen nicht mehr hinaus.
 - **Bündeln:** der erste Treffer wartet 10 min auf weitere (ein Quellenlauf oder Host-Import ergibt eine Mail). „Dieselbe
   Schwachstelle nur einmal“ nimmt Treffer einer schon gemeldeten CVE als bekannt, wenn weitere Assets dazukommen.
-- **Mails als reiner Text** (kein HTML), Liste nach Schwachstelle gruppiert und nach Priorität geordnet, höchstens 25
+- **Mails als reiner Text** (kein HTML; seit 2026-11-19 zusätzlich HTML, siehe „Moderne E-Mails“), Liste nach Schwachstelle gruppiert und nach Priorität geordnet, höchstens 25
   Einträge und je 5 Assets, darunter „… und N weitere im Eingang“. Je Eintrag Priorität mit Stufe, KEV, Titel,
   Betroffenes mit behobener Version, Grund der Meldung und Link `/?sel=…`. Texte aus Quellen ohne Steuer- und
   Richtungszeichen, gekürzt. Links nur mit eingetragener **Adresse der Oberfläche** (neues Feld auf der Seite

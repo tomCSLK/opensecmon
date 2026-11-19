@@ -47,7 +47,8 @@ Installation nur in `CLAUDE.local.md` und `PLAN.local.md` (gitignored).
 
 - **Aufbau:** `src/main.rs` (CLI: `serve`, `user add|passwd|delete|list`, `key generate`, `tls generate`, `backup`), `src/config.rs`
   (TOML + `OPENSECMON_*`), `src/storage/` (SQLite, Migrationen in `migrations/`), `src/auth/`, `src/crypto.rs`,
-  `src/mail.rs`, `src/audit.rs`, `src/agent.rs` (Agent-API: erlaubte Netze, Einmalcodes, Token, Takt; Rechner in
+  `src/mail.rs` (Versand als Text + HTML mit Logo; Bausteine der HTML-Mails `src/mail/view.rs`, Test-Mail
+  `src/mail/testmail.rs`, Vorlagen `templates/mail/`), `src/audit.rs`, `src/agent.rs` (Agent-API: erlaubte Netze, Einmalcodes, Token, Takt; Rechner in
   `storage/agents.rs`), `src/agent_code.rs` (Anmeldecode `osa1_…` für opensecagent), `src/agent_packages.rs`
   (Pakete von opensecagent aus `agent_packages_dir`, Downloads und Updates), `src/tls.rs` (eingebautes HTTPS aus opennetmon: `tls generate`, Laden, Server mit
   Umleitung von HTTP), `src/maintenance.rs` (stündlich: Protokoll und erledigte Treffer aufräumen, Tageszahlen
@@ -68,8 +69,9 @@ Verlauf) in `src/situation.rs`,
   `windows.rs`, SSH-Leser mit russh `ssh.rs`, Ausgabe des Inventar-Skripts `listing.rs` mit dem Skript
   selbst, CSV `csv.rs`, opennetmon mit Regeln für `sysDescr`/`sysObjectID` `opennetmon.rs`, Hintergrundlauf
   `runner.rs`; Hosts, Schlüssel, Token und Geräte in `storage/inventory.rs`),
-  `src/alerts/` (Meldungen: Prüfung jede Minute in `mod.rs` mit Sofort-Mail und Tagesbericht, Mailtexte in
-  `compose.rs`, Tests in `tests.rs`; Einstellungen und Zustand in `storage/alerts.rs`, Spalte `alert` an den Treffern),
+  `src/alerts/` (Meldungen: Prüfung jede Minute in `mod.rs` mit Sofort-Mail und Tagesbericht, Klartext in
+  `compose.rs`, HTML in `html.rs` mit Tests in `html/tests.rs`, Vorschau `cargo test --lib mail_preview -- --ignored`
+  nach `target/mail-preview/`, Tests in `tests.rs`; Einstellungen und Zustand in `storage/alerts.rs`, Spalte `alert` an den Treffern),
   `src/web/` (Router in `mod.rs`, Host-/Origin-Prüfung `origin.rs`, Seiten `pages.rs`, „Alle CVEs“ und Detail
   `cves.rs` mit Abschnitt „Distributionen“ aus `distro_view.rs`, Advisories `advisories.rs` (zweite Ansicht unter „Alle CVEs“, Umschalter `view_tabs.html`), Quellen
   `sources.rs`, Hersteller-CSAF `vendors.rs`, Eingang mit Triage `inbox.rs` (Tests in `inbox/tests.rs`), Assets und

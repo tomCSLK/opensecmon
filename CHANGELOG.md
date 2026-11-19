@@ -23,8 +23,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   state as CNAs in the CVE record. Own computers with these systems are marked at their version (affected, not
   affected, or version not checkable). These entries are no longer repeated in "affected according to the record".
 
+- Mails in HTML beside the plain text, in the look of the interface (light and dark, phones): the instant mail for a
+  single vulnerability shows its band and priority on a scale, KEV, the German summary of the BSI, CVSS with the way
+  of attack, EPSS with its percentile, the KEV dates, a table of the affected assets with installed and fixed
+  version, and why it was mailed; several vulnerabilities come as cards, worst first. The daily report adds tiles,
+  the open vulnerabilities of the last 14 days by band and the most affected hosts; the test mail shows what is set
+  up. No remote images, no scripts; the only picture is the logo inside the mail. Links need the address of the
+  interface, as before.
+- The plain text of the mails gives the local time with its zone, the detail of a single vulnerability, and in the
+  daily report the change since yesterday and the most affected hosts.
+
 ### Security
 
+- `lettre` 0.11.24 for RUSTSEC-2026-0560 to -0565 (SMTP: reply injection after STARTTLS by a man-in-the-middle,
+  command injection through missing dot-stuffing, unbounded server replies).
 - `cargo deny` ignores RUSTSEC-2026-0459 (bundled SQLite before 3.54.0 with a crafted `-wal` file): opensecmon opens
   only its own database in its state directory, and no sqlx release accepts the fixed `libsqlite3-sys` yet.
 

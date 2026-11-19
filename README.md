@@ -32,7 +32,8 @@ network with one or a few administrators.
   CSAF product trees (medium), keywords (low). The running kernel, a pending reboot and Ubuntu Pro are taken into
   account; the kernel of Raspberry Pi OS has no data source and is shown as such.
 - **Mail:** an instant mail for new matches with KEV, a high priority, CVSS or EPSS above your thresholds (bundled, no
-  flood when switched on), and a daily report at a set time.
+  flood when switched on), and a daily report at a set time with the trend and the most affected hosts; HTML in the
+  look of the interface with a plain-text part, no remote content.
 - **Overview:** a situation page (open critical and KEV matches, the last 30 days, most affected hosts, state of the
   sources), searchable lists of all CVEs and advisories with details, CSV export.
 - **Operating systems:** the detail of a CVE shows per release what Debian and Ubuntu say, and for Windows, Apple
