@@ -20,8 +20,8 @@ und aus opennetmon). Bei Treffern kommt sofort eine Mail, dazu ein Tagesbericht.
 und eingebautes HTTPS; Vorhaben „Rauschen im Betrieb“ abgeschlossen; Desktop-Agent: Schnittstelle `docs/agent-api.md`,
 Skripte in `contrib/` und Vorbereitung für das eigene Programm opensecagent (Schritt 7). **Öffentlich und als erstes
 Release v0.3.5 veröffentlicht** (2026-11-08). Danach (2026-11-09) deutsche Texte zu CVEs (Kurzfassung des BSI,
-„Übersetzen“ im Browser) und Windows, Apple und Android im CVE-Detail; Version 0.3.6 als Test-Paket, kein Release. Danach (2026-11-19) HTML-Mails im Stil von opennetmon, Test-Paket 0.3.7 (Mails vom Nutzer geprüft). Geplant: Docker-Version
-wie bei opennetmon (Vorhaben in `PLAN.md`, Vorschläge 1–5 zur Entscheidung, Umsetzung schrittweise nach „go“).
+„Übersetzen“ im Browser) und Windows, Apple und Android im CVE-Detail; Version 0.3.6 als Test-Paket, kein Release. Danach (2026-11-19) HTML-Mails im Stil von opennetmon, Test-Paket 0.3.7 (Mails vom Nutzer geprüft). In Arbeit: Docker-Version
+wie bei opennetmon (Vorhaben in `PLAN.md`; Schritt 1, die Vorarbeiten im Programm, erledigt 2026-11-20; weitere Schritte nach „go“).
 Weitere Releases nur auf Ansage. Einzelheiten, Messwerte und Abweichungen vom Entwurf in `PLAN.md`; Betriebsdaten der eigenen
 Installation nur in `CLAUDE.local.md` und `PLAN.local.md` (gitignored).
 
@@ -46,8 +46,9 @@ Installation nur in `CLAUDE.local.md` und `PLAN.local.md` (gitignored).
 
 ## Entwicklung
 
-- **Aufbau:** `src/main.rs` (CLI: `serve`, `user add|passwd|delete|list`, `key generate`, `tls generate`, `backup`), `src/config.rs`
-  (TOML + `OPENSECMON_*`), `src/storage/` (SQLite, Migrationen in `migrations/`), `src/auth/`, `src/crypto.rs`,
+- **Aufbau:** `src/main.rs` (CLI: `serve`, `user add|passwd|delete|list`, `key generate`, `tls generate`, `backup`, `healthcheck`), `src/config.rs`
+  (TOML + `OPENSECMON_*` für jede Einstellung, Liste in `docs/configuration.md`), `src/first_start.rs` (`generate_missing`),
+  `src/healthcheck.rs`, `src/backup.rs` (Sicherung nach Zeitplan, `backup_dir`), `src/storage/` (SQLite, Migrationen in `migrations/`), `src/auth/`, `src/crypto.rs`,
   `src/mail.rs` (Versand als Text + HTML mit Logo; Bausteine der HTML-Mails `src/mail/view.rs`, Test-Mail
   `src/mail/testmail.rs`, Vorlagen `templates/mail/`), `src/audit.rs`, `src/agent.rs` (Agent-API: erlaubte Netze, Einmalcodes, Token, Takt; Rechner in
   `storage/agents.rs`), `src/agent_code.rs` (Anmeldecode `osa1_…` für opensecagent), `src/agent_packages.rs`
@@ -73,7 +74,7 @@ Verlauf) in `src/situation.rs`,
   `src/alerts/` (Meldungen: Prüfung jede Minute in `mod.rs` mit Sofort-Mail und Tagesbericht, Klartext in
   `compose.rs`, HTML in `html.rs` mit Tests in `html/tests.rs`, Vorschau `cargo test --lib mail_preview -- --ignored`
   nach `target/mail-preview/`, Tests in `tests.rs`; Einstellungen und Zustand in `storage/alerts.rs`, Spalte `alert` an den Treffern),
-  `src/web/` (Router in `mod.rs`, Host-/Origin-Prüfung `origin.rs`, Seiten `pages.rs`, „Alle CVEs“ und Detail
+  `src/web/` (Router in `mod.rs`, Host-/Origin-Prüfung `origin.rs` (dort auch die Warnung bei verdeckten Absenderadressen aus `hidden_peer.rs`), Seiten `pages.rs`, „Alle CVEs“ und Detail
   `cves.rs` mit Abschnitt „Distributionen“ aus `distro_view.rs`, Advisories `advisories.rs` (zweite Ansicht unter „Alle CVEs“, Umschalter `view_tabs.html`), Quellen
   `sources.rs`, Hersteller-CSAF `vendors.rs`, Eingang mit Triage `inbox.rs` (Tests in `inbox/tests.rs`), Assets und
   Watchlist `asset_pages.rs` (Reiter gemeinsam für alle Asset-Seiten), Hosts mit Assistent `hosts.rs`,
@@ -91,8 +92,9 @@ Verlauf) in `src/situation.rs`,
   nur „Jetzt abrufen“). Der Erstimport lädt rund 1 GB (cvelistV5 ~650 MB, NVD-Jahres-Feeds) und braucht ~17 min;
   nicht wiederholen, sondern die vorhandene Test-DB nutzen (`dev/import.local.toml`, `dev/data/`, gitignored).
   Sie enthält seit Phase 3 auch alle BSI-Advisories und den Anbieter Intevation (Erstimport BSI ~5 min), seit
-  Phase 4 die OSV-Daten von Debian und Ubuntu und den Debian-Tracker (Erstimport ~2,5 min, ~900 MB Download). Das
-  Log hat Farbcodes mitten in `source="…"`: vor dem Suchen mit `sed 's/\x1b\[[0-9;]*m//g'` entfernen. Nur
+  Phase 4 die OSV-Daten von Debian und Ubuntu und den Debian-Tracker (Erstimport ~2,5 min, ~900 MB Download). Ins
+  Terminal hat das Log Farbcodes mitten in `source="…"` (in eine Datei oder ins Journal seit 2026-11-20 nicht mehr): vor dem Suchen mit
+  `sed 's/\x1b\[[0-9;]*m//g'` entfernen. Nur
   eine Instanz mit Ablaufplaner auf dieselbe DB loslassen: eine zweite Instanz mit `fetch_sources = false`
   (nur zum Ansehen, z. B. `dev/view.local.toml` auf Port 8092) führt fällig gemachte Quellen sonst ebenfalls aus.
   Seit Phase 5 liegen in der Test-DB 6 Assets und ein Stichwort (Test-Instanz mit Abgleich: `dev/match.local.toml`,

@@ -948,10 +948,29 @@ die Dateien von dort kopieren und anpassen (`Containerfile`, `compose.yaml`, `de
 
 ### Schritte (je nach „go“)
 
-1. **Vorarbeiten im Programm** (aus opennetmon übernommen): alle Einstellungen als `OPENSECMON_*` und `OPENSECMON_CONFIG`, `generate_missing`,
-   tzdb eingebettet als Ersatz (jiff `tzdb-bundle-always`, Abhängigkeit `jiff-tzdb`, Unlicense OR MIT), `opensecmon healthcheck`, Sicherung
-   nach Zeitplan, Logs ohne Farbcodes ohne Terminal, Warnung bei gleicher Absenderadresse; Texte de/en, `docs/configuration.md` (neu, alle
-   Einstellungen mit Variable), `deploy/config.example.toml`. Für das `.deb` bleiben alle neuen Schalter aus.
+1. ✓ **Vorarbeiten im Programm** (2026-11-20, „go für Schritt 1“; die Vorschläge oben gelten damit als angenommen; kein Paket, kein
+   Release):
+   - alle Einstellungen auch als `OPENSECMON_*` (Listen mit Komma oder Leerzeichen; ein leerer Wert löscht eine optionale Einstellung,
+     `OPENSECMON_AGENT_NETWORKS=none` schaltet die Agent-API ab) und die Datei per `OPENSECMON_CONFIG`
+   - `generate_missing` für Schlüssel und Zertifikat (Modul `first_start`, aus opennetmon)
+   - tzdb eingebettet als Ersatz (jiff `tzdb-bundle-always`, `jiff-tzdb` stand schon im Lockfile, Unlicense OR MIT)
+   - `opensecmon healthcheck` (Modul `healthcheck`); **Abweichung von opennetmon:** bei eingebautem HTTPS wird der Fingerabdruck des
+     eigenen Zertifikats aus `tls_cert_file` geprüft statt gar keiner Prüfung
+   - Sicherung nach Zeitplan im Programm (`backup_dir`, `backup_keep` Standard 14, `backup_time`; Modul `backup`, aus opennetmon, holt
+     eine verpasste Sicherung fünf Minuten nach dem Start nach); `backup_keep = 3` setzt erst das Image (Schritt 2)
+   - Logs ohne Farbcodes, wenn stderr kein Terminal ist; beim Start eine Zeile mit der Zeitzone
+   - Warnung bei verdeckten Absenderadressen (`web/hidden_peer.rs`, in der Host-Prüfung): nur in einem Container (`/.dockerenv`,
+     `/run/.containerenv`) und ohne `client_ip_header`, wenn eine Anfrage von der eigenen Adresse des Containers kommt; einmal je Start.
+     Gemessen mit Podman 4.9 ohne Root: mit `slirp4netns` kommen alle Anfragen von `10.0.2.100` (der Adresse des Containers), mit
+     `--network pasta` die echte Adresse (Anfragen vom Host selbst erscheinen dort als Gateway).
+   - `docs/configuration.md` (neu, alle Einstellungen mit Variable), `docs/operations.md` und `deploy/config.example.toml` ergänzt.
+     Neue Sprachtexte waren nicht nötig (nur Log-Meldungen, die sind englisch).
+   - Für das `.deb` ändert sich nichts (alle neuen Schalter aus); seine `config.toml` hat nur zusätzliche Kommentarzeilen, apt fragt
+     beim nächsten Update deshalb nach der Datei (eigene behalten).
+   - Geprüft: fmt, clippy, 476 Tests; Probelauf nur mit Variablen und leerem `/usr/share/zoneinfo` (`unshare`): Schlüssel (0600) und
+     Zertifikat entstehen, beim zweiten Start nicht neu, Zone `Europe/Berlin` aus `TZ` über die eingebettete tzdb, `healthcheck` 0 bzw.
+     1 ohne Server, `user add`, Anmeldung über HTTPS, fremder Host 421, Log ohne Farbcodes. Die nachgeholte Sicherung kam
+     nach fünf Minuten, Name in Ortszeit, Ordner 0700, Datei 0600, `integrity_check` ok; Stopp mit SIGTERM sauber.
 2. **Image und Doku:** `Containerfile`, `compose.yaml`, `dev/container.sh` (Bau für die eigene Architektur und Rauchtest), Workflow
    `container.yml` (amd64/arm64, Rauchtest, Push nur beim Tag), `docs/docker.md`, Abschnitt im README, `release.sh` legt `compose.yaml` ins Release.
 3. **Prüfung:** lokal mit Podman ohne Root (erster Start, Healthcheck, `user add`, Anmeldung, Neustart und Update mit denselben Volumes, Sicherung,
