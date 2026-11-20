@@ -49,7 +49,8 @@ network with one or a few administrators.
 
 ## Requirements
 
-- A server with Debian 12/13 or Ubuntu 22.04 or later (`amd64`, systemd).
+- A server with Debian 12/13 or Ubuntu 22.04 or later (`amd64`, systemd) for the package, or any host with Docker or
+  Podman (`amd64`, `arm64`) for the container image.
 - About 2 GB of disk space for the database plus room for downloads and backups; about 200 MB of memory during the
   first import, much less afterwards.
 - Outgoing HTTPS to the sources, and an SMTP server for the mails.
@@ -72,6 +73,20 @@ with the one your browser shows before you accept it. Enter your mail server und
 The first start imports all sources on its own: about 1.9 GB of downloads and some 25 minutes. Afterwards the database
 holds some 420,000 CVEs in about 1.5 GB, and only changes are fetched. The full guide (configuration, certificates,
 reverse proxy, users, backups, updates, uninstalling) is [`docs/operations.md`](docs/operations.md).
+
+### In a container
+
+From the next release on, opensecmon is also an image for Docker and Podman, `ghcr.io/tomcslk/opensecmon` (amd64 and
+arm64). With [`compose.yaml`](compose.yaml) in an empty folder (set `OPENSECMON_ALLOWED_HOSTS` in it first):
+
+```sh
+docker compose up -d
+docker compose exec opensecmon opensecmon user add anna
+docker compose logs opensecmon | grep fingerprint
+```
+
+Then open `https://<host>:8444`. Volumes, settings, certificates, computers with opensecagent, backups and updates:
+[`docs/docker.md`](docs/docker.md). All settings with their environment variables: [`docs/configuration.md`](docs/configuration.md).
 
 ## Building
 

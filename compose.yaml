@@ -1,0 +1,37 @@
+# opensecmon in a container (docs/docker.md). Docker Compose or Podman.
+#
+#   docker compose up -d
+#   docker compose exec opensecmon opensecmon user add admin        # the first user
+#   docker compose logs opensecmon | grep fingerprint               # compare it with the browser's warning
+#
+# Then open https://<address of this computer>:8444. The first fetch of the sources downloads about 2 GB and takes
+# half an hour or more; the database grows to about 2 GB. Update: docker compose pull && docker compose up -d
+services:
+  opensecmon:
+    # latest follows every release; pin a version (e.g. :0.4) to update on your own schedule.
+    image: ghcr.io/tomcslk/opensecmon:latest
+    restart: unless-stopped
+    ports:
+      - "8444:8444"
+    volumes:
+      - config:/etc/opensecmon       # key, certificate: back it up apart from the data
+      - data:/var/lib/opensecmon     # database, daily backups in backups/
+    environment:
+      TZ: Europe/Berlin              # time zone of the daily report, the mails and the backups (default UTC)
+      # The addresses you open opensecmon under, with the port. Recommended: other host names are refused, and the
+      # certificate created on the first start names these hosts (the scripts for computers check the name).
+      # OPENSECMON_ALLOWED_HOSTS: "192.168.1.10:8444,secmon.lan:8444"
+      # All settings: docs/configuration.md, e.g.
+      # OPENSECMON_BACKUP_TIME: "03:30"
+    # network_mode: host               # instead of the port mapping, e.g. for rootless Podman with slirp4netns
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  config:
+  data:

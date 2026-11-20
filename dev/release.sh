@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds, checks and (optionally) publishes a GitHub release of opensecmon: a .deb package.
+# Builds, checks and (optionally) publishes a GitHub release of opensecmon: a .deb package and compose.yaml. The
+# container image is built and pushed by .github/workflows/container.yml when the tag arrives.
 #
 #   dev/release.sh                                  # build and check only; result in target/dist/
 #   dev/release.sh --publish --notes notes.md       # additionally tag vX.Y.Z, push the tag, create the release
@@ -72,7 +73,8 @@ for f in usr/bin/opensecmon usr/sbin/opensecmon-backup etc/opensecmon/config.tom
   grep -q " \./$f\$" <<<"$CONTENTS" || fail "$DEB does not contain /$f"
 done
 [ "$(dpkg-deb --field "$DIST/$DEB" Version)" = "$VERSION-1" ] || fail "$DEB has the wrong version"
-(cd "$DIST" && sha256sum "$DEB" > SHA256SUMS)
+cp compose.yaml "$DIST/"
+(cd "$DIST" && sha256sum "$DEB" compose.yaml > SHA256SUMS)
 
 cat "$DIST/SHA256SUMS"
 
@@ -85,7 +87,7 @@ step "tagging $TAG and creating the GitHub release"
 git tag -a "$TAG" -m "opensecmon $VERSION"
 git push -q origin "$TAG"
 gh release create "$TAG" --verify-tag "${PRERELEASE[@]}" --title "opensecmon $VERSION" --notes-file "$NOTES" \
-  "$DIST/$DEB" "$DIST/SHA256SUMS"
+  "$DIST/$DEB" "$DIST/compose.yaml" "$DIST/SHA256SUMS"
 
 step "verifying the uploaded files"
 VERIFY=$(mktemp -d)

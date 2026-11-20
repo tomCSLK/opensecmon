@@ -10,4 +10,5 @@
 /dev/cache/
 /dist/agent/*
 !/dist/agent/README.md
+!/dist/agent/release.txt
 /PLAN.local.md

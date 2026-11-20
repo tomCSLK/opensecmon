@@ -6,14 +6,17 @@
 #
 # Every package (opensecagent_<version>-<rev>_<arch>.deb, opensecagent-<version>-<arch>-setup.exe) needs its
 # signature <file>.sig, made with `ssh-keygen -Y sign -n opensecagent`. The signature is checked against the
-# publisher key (default ../opensecagent/keys/allowed_signers, identity "opensecagent") before anything is copied;
+# publisher key (default keys/opensecagent.allowed_signers, a copy of the one in opensecagent, identity "opensecagent") before anything is copied;
 # one bad file stops everything. Packages already in dist/agent/ are replaced.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 source_dir=${1:?usage: dev/agent-packages.sh <folder> [allowed_signers]}
-signers=${2:-../opensecagent/keys/allowed_signers}
+signers=${2:-keys/opensecagent.allowed_signers}
 [ -f "$signers" ] || { echo "error: no allowed_signers file at $signers" >&2; exit 1; }
+if [ -f ../opensecagent/keys/allowed_signers ] && ! cmp -s ../opensecagent/keys/allowed_signers keys/opensecagent.allowed_signers; then
+  echo "warning: keys/opensecagent.allowed_signers differs from ../opensecagent/keys/allowed_signers" >&2
+fi
 command -v ssh-keygen >/dev/null || { echo "error: ssh-keygen is missing" >&2; exit 1; }
 
 shopt -s nullglob

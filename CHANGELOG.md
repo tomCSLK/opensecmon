@@ -20,8 +20,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Inside a container, a warning when the port forwarding hides the client addresses (rootless Podman with
   `slirp4netns`): the sign-in throttling, the audit log and `agent_networks` would see one address for everybody.
 
+- A container image for Docker and Podman (amd64, arm64), built by `.github/workflows/container.yml` on a release
+  tag and pushed to `ghcr.io/tomcslk/opensecmon`: `Containerfile`, `compose.yaml` (also attached to the release),
+  `dev/container.sh` with a smoke test, and `docs/docker.md`. Built-in HTTPS on port 8444, three daily backups.
+- The image carries the signed opensecagent packages of the release named in `dist/agent/release.txt`, fetched by
+  `dev/agent-release.sh` and checked against their SHA-256 and the publisher key in `keys/opensecagent.allowed_signers`.
+- A certificate created with `generate_missing` also names the hosts of `allowed_hosts`, so the scripts for
+  computers, which check the name, work with it.
+
 ### Changed
 
+- `dev/agent-packages.sh` checks against `keys/opensecagent.allowed_signers` by default.
 - The log has no colour codes when it does not go to a terminal (journald, `docker logs`).
 
 - With the German interface the detail of a CVE (list, page of its own, inbox) shows the German summary of a BSI
