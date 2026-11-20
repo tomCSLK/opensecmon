@@ -146,7 +146,7 @@ pub async fn rename(pool: &SqlitePool, d: &AgentDevice, name: &str) -> Result<bo
     if name_taken(pool, name, None, Some(d.id)).await? {
         return Ok(false);
     }
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     sqlx::query("UPDATE agent_devices SET name = ? WHERE id = ?")
         .bind(name)
         .bind(d.id)
@@ -374,7 +374,7 @@ pub async fn store_report(
     let Some(distro) = listing.distro else {
         return Ok(Some(PackageSync::default()));
     };
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     let r = sqlx::query(
         "UPDATE agent_devices
             SET os_name = ?, distro = ?, release = ?, packages = ?, report_hash = ?, last_report_ms = ?,
@@ -437,7 +437,7 @@ pub async fn store_windows(
     info: &ReportInfo,
     now_ms: i64,
 ) -> Result<Option<PackageSync>> {
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     let r = sqlx::query(
         "UPDATE agent_devices
             SET os_name = ?, distro = '', release = ?, packages = 1, report_hash = ?, last_report_ms = ?,
@@ -525,7 +525,7 @@ pub async fn delete(pool: &SqlitePool, id: i64) -> Result<Option<AgentDevice>> {
     let Some(d) = device(pool, id).await? else {
         return Ok(None);
     };
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     sqlx::query("DELETE FROM assets WHERE origin_ref = ?")
         .bind(d.origin_ref())
         .execute(&mut *tx)

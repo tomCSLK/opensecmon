@@ -208,7 +208,7 @@ pub async fn submit(
         return render(&state, &user, f.text, Some(preview), None, None).await;
     }
     let now = now_ms();
-    let mut tx = state.pool.begin().await?;
+    let mut tx = crate::storage::write_tx(&state.pool).await?;
     let mut changed = Vec::new();
     let (mut added, mut updated) = (0usize, 0usize);
     for r in &parsed.rows {

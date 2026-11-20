@@ -84,7 +84,7 @@ pub async fn convert(pool: &SqlitePool) -> Result<u64> {
         if packed.is_empty() {
             continue;
         }
-        let mut tx = pool.begin().await?;
+        let mut tx = crate::storage::write_tx(pool).await?;
         for (id, z) in &packed {
             sqlx::query("UPDATE nvd_cves SET configs = '', configs_z = ? WHERE cve_id = ? AND length(configs) > 2")
                 .bind(z)
@@ -123,7 +123,7 @@ pub async fn convert(pool: &SqlitePool) -> Result<u64> {
         })
         .await
         .map_err(|e| crate::error::Error::Internal(e.to_string()))?;
-        let mut tx = pool.begin().await?;
+        let mut tx = crate::storage::write_tx(pool).await?;
         for (seq, refs, refs_z, affected, affected_z) in &packed {
             // Only columns that are still text (a newer write in between is already packed).
             sqlx::query(

@@ -121,7 +121,7 @@ pub async fn configure_provider(
     since: &str,
     skip: &[String],
 ) -> Result<()> {
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     let before: Option<(String, String)> =
         sqlx::query_as("SELECT since, skip FROM csaf_providers WHERE id = ?")
             .bind(id)
@@ -395,7 +395,7 @@ pub async fn newest_day(pool: &SqlitePool, source: &str) -> Result<Option<String
 
 /// Replaces the cached provider list of the BSI.
 pub async fn replace_lister(pool: &SqlitePool, listed: &[Listed], now_ms: i64) -> Result<()> {
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     sqlx::query("DELETE FROM csaf_lister")
         .execute(&mut *tx)
         .await?;

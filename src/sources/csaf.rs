@@ -344,7 +344,7 @@ async fn write_batch(
         return Ok(());
     }
     let now = now_ms();
-    let mut tx = ctx.pool.begin().await?;
+    let mut tx = crate::storage::write_tx(&ctx.pool).await?;
     for (doc, result) in done.iter() {
         match result {
             DocResult::Stored(advisory, hash_checked) => {

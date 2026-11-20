@@ -355,7 +355,7 @@ async fn ingest_archive(ctx: &Context, path: PathBuf) -> anyhow::Result<(i64, i6
     let (mut new, mut changed) = (0, 0);
     let stored: anyhow::Result<()> = async {
         while let Some(batch) = batches.recv().await {
-            let mut tx = ctx.pool.begin().await?;
+            let mut tx = crate::storage::write_tx(&ctx.pool).await?;
             for cve in &batch {
                 match upsert(&mut tx, cve).await? {
                     Upserted::New => new += 1,

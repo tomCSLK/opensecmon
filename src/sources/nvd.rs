@@ -460,7 +460,7 @@ async fn ingest(ctx: &Context, path: PathBuf, sha256: String) -> anyhow::Result<
     let (mut new, mut changed) = (0, 0);
     let stored: anyhow::Result<()> = async {
         while let Some(batch) = batches.recv().await {
-            let mut tx = ctx.pool.begin().await?;
+            let mut tx = crate::storage::write_tx(&ctx.pool).await?;
             for record in &batch {
                 match store(&mut tx, record).await? {
                     Some(true) => new += 1,

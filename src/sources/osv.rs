@@ -547,7 +547,7 @@ async fn ingest_archive(
 
 async fn write_records(ctx: &Context, batch: &[Record], totals: &mut Totals) -> anyhow::Result<()> {
     let now = crate::sources::now_ms();
-    let mut tx = ctx.pool.begin().await?;
+    let mut tx = crate::storage::write_tx(&ctx.pool).await?;
     for record in batch {
         match distros::upsert(&mut tx, record, now).await? {
             Upserted::New => totals.new += 1,

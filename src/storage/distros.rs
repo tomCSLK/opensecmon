@@ -124,7 +124,7 @@ pub async fn delete(pool: &SqlitePool, ids: &[String]) -> Result<u64> {
     let mut removed = 0;
     for chunk in ids.chunks(DELETE_CHUNK) {
         let marks = vec!["?"; chunk.len()].join(",");
-        let mut tx = pool.begin().await?;
+        let mut tx = crate::storage::write_tx(pool).await?;
         let seqs: Vec<i64> = {
             let sql = format!("SELECT seq FROM osv_records WHERE id IN ({marks})");
             let mut q = sqlx::query_scalar(&sql);
@@ -187,7 +187,7 @@ pub async fn replace_tracker(pool: &SqlitePool, rows: Vec<TrackerRow>) -> Result
         .map(|r| ((r.cve_id.clone(), r.package.clone(), r.release.clone()), r))
         .collect();
     let mut out = Replaced::default();
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     for row in rows {
         let key = (row.cve_id.clone(), row.package.clone(), row.release.clone());
         match old.remove(&key) {

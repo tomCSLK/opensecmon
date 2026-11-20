@@ -126,7 +126,7 @@ pub async fn change_password(
     hash: &str,
     keep: Option<&str>,
 ) -> Result<()> {
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     let done = sqlx::query("UPDATE users SET password_hash = ? WHERE id = ?")
         .bind(hash)
         .bind(id)

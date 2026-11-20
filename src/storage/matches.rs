@@ -281,7 +281,7 @@ pub async fn sync(
     let mut out = Synced::default();
     let mut seen = HashSet::new();
     for chunk in found.chunks(CHUNK) {
-        let mut tx = pool.begin().await?;
+        let mut tx = crate::storage::write_tx(pool).await?;
         for f in chunk {
             if !seen.insert(f.vuln.as_str()) {
                 continue;
@@ -354,7 +354,7 @@ pub async fn sync(
         .map(|(_, (id, state, _, _))| (*id, matches!(state.as_str(), "new" | "seen" | "later")))
         .collect();
     for chunk in gone.chunks(CHUNK) {
-        let mut tx = pool.begin().await?;
+        let mut tx = crate::storage::write_tx(pool).await?;
         for (id, open) in chunk {
             if *open {
                 sqlx::query(
@@ -560,7 +560,7 @@ pub async fn unalerted(pool: &SqlitePool) -> Result<Vec<Row>> {
 /// Marks matches as sent by instant mail (`sent`) or as known without a mail (`quiet`).
 pub async fn set_alert(pool: &SqlitePool, ids: &[i64], sent: bool, now_ms: i64) -> Result<()> {
     for chunk in ids.chunks(CHUNK) {
-        let mut tx = pool.begin().await?;
+        let mut tx = crate::storage::write_tx(pool).await?;
         for id in chunk {
             sqlx::query("UPDATE matches SET alert = ?, alert_ms = ? WHERE id = ?")
                 .bind(if sent { "sent" } else { "quiet" })

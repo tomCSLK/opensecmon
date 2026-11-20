@@ -49,6 +49,14 @@ pub async fn connect(path: &Path) -> Result<SqlitePool> {
     Ok(pool)
 }
 
+/// Starts a transaction that writes: it takes the write lock at once (`BEGIN IMMEDIATE`) and waits up to the
+/// busy timeout for it. A deferred transaction (`pool.begin()`) that reads first fails at once with "database is
+/// locked" when another connection wrote in between, because SQLite cannot move its snapshot; that stopped the
+/// first import of the CVE list when a computer reported at the same moment. Every transaction here writes.
+pub async fn write_tx(pool: &SqlitePool) -> sqlx::Result<sqlx::Transaction<'static, sqlx::Sqlite>> {
+    pool.begin_with("BEGIN IMMEDIATE").await
+}
+
 /// Applies all pending migrations from `migrations/` (embedded at compile time).
 pub async fn migrate(pool: &SqlitePool) -> Result<()> {
     sqlx::migrate!("./migrations").run(pool).await?;
@@ -103,6 +111,84 @@ pub async fn ping(pool: &SqlitePool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A transaction that reads, then writes after another connection wrote: deferred it fails at once,
+    /// with [`write_tx`] it waits for the other writer.
+    #[tokio::test]
+    async fn a_write_transaction_waits_instead_of_failing() {
+        let dir = tempfile::tempdir().unwrap();
+        let pool = connect(&dir.path().join("t.db")).await.unwrap();
+        migrate(&pool).await.unwrap();
+        let read_then_write = |immediate: bool| {
+            let pool = pool.clone();
+            async move {
+                let mut tx = if immediate {
+                    write_tx(&pool).await?
+                } else {
+                    pool.begin().await?
+                };
+                sqlx::query_scalar::<_, i64>("SELECT count(*) FROM meta")
+                    .fetch_one(&mut *tx)
+                    .await?;
+                // Another connection writes meanwhile (it waits for the lock if this one holds it).
+                let other = {
+                    let pool = pool.clone();
+                    tokio::spawn(async move {
+                        sqlx::query(
+                            "INSERT OR REPLACE INTO meta (key, value) VALUES ('other', 'x')",
+                        )
+                        .execute(&pool)
+                        .await
+                    })
+                };
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                let mine =
+                    sqlx::query("INSERT OR REPLACE INTO meta (key, value) VALUES ('mine', 'y')")
+                        .execute(&mut *tx)
+                        .await;
+                let mine = match mine {
+                    Ok(_) => tx.commit().await,
+                    Err(e) => Err(e),
+                };
+                other.await.unwrap()?;
+                mine
+            }
+        };
+        let deferred = read_then_write(false).await.unwrap_err();
+        assert!(deferred.to_string().contains("locked"), "{deferred}");
+        read_then_write(true).await.unwrap();
+    }
+
+    /// New transactions use [`write_tx`]: a `.begin()` outside the tests would bring the failure back.
+    #[test]
+    fn no_deferred_transactions_outside_the_tests() {
+        fn walk(dir: &Path, found: &mut Vec<String>) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    walk(&path, found);
+                } else if path.extension().is_some_and(|e| e == "rs") {
+                    let text = std::fs::read_to_string(&path).unwrap();
+                    // Test modules sit at the end of a file; test files are named *tests.rs.
+                    let code = text.split("#[cfg(test)]").next().unwrap_or_default();
+                    if path.to_string_lossy().ends_with("tests.rs") {
+                        continue;
+                    }
+                    for (i, line) in code.lines().enumerate() {
+                        if line.contains(".begin().await") {
+                            found.push(format!("{}:{}", path.display(), i + 1));
+                        }
+                    }
+                }
+            }
+        }
+        let mut found = Vec::new();
+        walk(
+            Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src")),
+            &mut found,
+        );
+        assert!(found.is_empty(), "use storage::write_tx: {found:?}");
+    }
 
     #[tokio::test]
     async fn backup_is_a_consistent_private_copy_and_never_overwrites() {

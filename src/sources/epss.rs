@@ -127,7 +127,7 @@ async fn store(ctx: &Context, scores: &Scores) -> crate::error::Result<(i64, i64
     .execute(pool)
     .await?;
     for chunk in scores.rows.chunks(ROWS_PER_INSERT * 20) {
-        let mut tx = pool.begin().await?;
+        let mut tx = crate::storage::write_tx(pool).await?;
         for rows in chunk.chunks(ROWS_PER_INSERT) {
             let mut sql =
                 String::from("INSERT OR REPLACE INTO epss_new (cve_id, score, percentile) VALUES ");
@@ -141,7 +141,7 @@ async fn store(ctx: &Context, scores: &Scores) -> crate::error::Result<(i64, i64
         tx.commit().await?;
         ctx.progress.add(chunk.len() as u64);
     }
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     sqlx::query("DROP TABLE epss").execute(&mut *tx).await?;
     sqlx::query("ALTER TABLE epss_new RENAME TO epss")
         .execute(&mut *tx)

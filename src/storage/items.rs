@@ -336,7 +336,7 @@ pub async fn resync(pool: &SqlitePool, origins: &[String], now_ms: i64) -> Resul
         };
         // A write transaction from the start: one that reads first cannot write once the matching has written
         // in between (SQLITE_BUSY at once instead of waiting).
-        let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
+        let mut tx = crate::storage::write_tx(pool).await?;
         let sync = sync_origin(&mut tx, origin_ref, &name, now_ms).await?;
         tx.commit().await?;
         changed.extend(sync.changed);

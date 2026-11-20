@@ -92,7 +92,7 @@ pub async fn set_pro_mode(
     mode: ProMode,
     now_ms: i64,
 ) -> Result<Vec<i64>> {
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     let sql = format!(
         "UPDATE {} SET pro_mode = ? WHERE id = ? RETURNING pro_detected, distro",
         owner.table()
@@ -298,7 +298,7 @@ pub async fn update_host(pool: &SqlitePool, old: &SshHost, h: &CheckedHost) -> R
         return Ok(false);
     }
     let moved = old.address != h.address || old.port != i64::from(h.port);
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     sqlx::query(
         "UPDATE ssh_hosts SET name = ?, address = ?, port = ?, username = ?,
              host_key = CASE WHEN ? THEN '' ELSE host_key END,
@@ -328,7 +328,7 @@ pub async fn delete_host(pool: &SqlitePool, id: i64) -> Result<Option<SshHost>> 
     let Some(h) = host(pool, id).await? else {
         return Ok(None);
     };
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     sqlx::query("DELETE FROM assets WHERE origin_ref = ?")
         .bind(h.origin_ref())
         .execute(&mut *tx)
@@ -420,7 +420,7 @@ pub async fn apply_listing(
         return Ok(PackageSync::default());
     };
     // Writes from the start: it reads first, and the matching of another host may write in between.
-    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     let pro = h.pro_mode().effective(listing.pro, listing.distro);
     let mut sync = sync_packages(
         &mut tx,
@@ -689,7 +689,7 @@ pub async fn store_onm_devices(
     devices: &[OnmDevice],
     now_ms: i64,
 ) -> Result<()> {
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     for d in devices {
         sqlx::query(
             "INSERT INTO onm_devices (id, name, address, sys_descr, sys_object_id, vendor_name, product_name,

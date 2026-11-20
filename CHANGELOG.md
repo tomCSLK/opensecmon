@@ -65,6 +65,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `cargo deny` ignores RUSTSEC-2026-0459 (bundled SQLite before 3.54.0 with a crafted `-wal` file): opensecmon opens
   only its own database in its state directory, and no sqlx release accepts the fixed `libsqlite3-sys` yet.
 
+### Fixed
+
+- A source could stop with "database is locked" when something else wrote at the same moment, e.g. the first import
+  of the CVE list when a computer reported (found in a container test). Every write transaction now takes the
+  write lock at its start and waits for it (`storage::write_tx`), as two of them already did.
+
 ## [0.3.5] - 2026-11-08
 
 First public release. Everything below was developed before it; versions 0.1.0 to 0.3.4 were test packages only.

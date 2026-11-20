@@ -175,7 +175,7 @@ pub async fn store(pool: &sqlx::SqlitePool, entries: &[Entry]) -> crate::error::
         }
     }
 
-    let mut tx = pool.begin().await?;
+    let mut tx = crate::storage::write_tx(pool).await?;
     sqlx::query("DELETE FROM kev").execute(&mut *tx).await?;
     for e in entries {
         sqlx::query(
