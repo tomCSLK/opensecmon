@@ -6,9 +6,12 @@
 //!   header has to name the host of the request, and browsers that send `Sec-Fetch-Site` must not report a
 //!   cross-site request. This backs up the CSRF tokens and the `SameSite=Strict` cookies.
 //!
-//! `/healthz` stays reachable under any host name for monitoring.
+//! `/healthz` stays reachable under any host name for monitoring. Inside a container the middleware also notices
+//! a port forwarding that hides the clients' addresses ([`super::hidden_peer`]).
 
-use axum::extract::{Request, State};
+use std::net::SocketAddr;
+
+use axum::extract::{ConnectInfo, Request, State};
 use axum::http::{HeaderMap, Method, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
@@ -16,6 +19,13 @@ use axum::response::{IntoResponse, Response};
 use crate::web::AppState;
 
 pub async fn check(State(state): State<AppState>, request: Request, next: Next) -> Response {
+    if state.client_ip_header.is_none() {
+        let peer = request
+            .extensions()
+            .get::<ConnectInfo<SocketAddr>>()
+            .map(|ConnectInfo(a)| a.ip());
+        state.hidden_peer.observe(peer);
+    }
     let headers = request.headers();
     let host = headers
         .get(header::HOST)

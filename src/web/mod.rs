@@ -14,6 +14,7 @@ pub mod csv_import;
 pub mod cves;
 mod distro_view;
 mod error_page;
+pub mod hidden_peer;
 pub mod hosts;
 #[cfg(test)]
 mod import_tests;
@@ -83,6 +84,8 @@ pub struct AppState {
     pub agent_pace: Arc<crate::agent::Pace>,
     /// The packages of opensecagent that came with opensecmon (read at start).
     pub agent_packages: Arc<crate::agent_packages::Catalog>,
+    /// Notices a port forwarding that hides the clients' addresses (containers).
+    pub hidden_peer: Arc<hidden_peer::HiddenPeer>,
 }
 
 impl AppState {
@@ -107,6 +110,7 @@ impl AppState {
                 .and_then(|(cert, _)| crate::tls::public_certificate(cert))
                 .map(Arc::new),
             agent_pace: Arc::default(),
+            hidden_peer: Arc::new(hidden_peer::HiddenPeer::detect()),
             agent_packages: Arc::new(crate::agent_packages::Catalog::load(
                 &config.agent_packages_dir(),
             )),

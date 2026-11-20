@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Every setting can come from an `OPENSECMON_<KEY>` variable (lists separated by commas or spaces; an empty value
+  unsets an optional setting), and the config file may be named in `OPENSECMON_CONFIG`. `docs/configuration.md`
+  lists all settings with their variables.
+- For containers: `generate_missing` creates a missing key file and a self-signed certificate at startup;
+  `backup_dir`, `backup_keep` and `backup_time` make the server write a daily backup itself (a missed one is made
+  shortly after the start); `opensecmon healthcheck` asks `/healthz` on the own address and checks the own
+  certificate. All of them are off in the `.deb`, which keeps its timer.
+- The time zone database is built in as a fallback for systems without `/usr/share/zoneinfo` (jiff feature
+  `tzdb-bundle-always`, crate `jiff-tzdb`, Unlicense OR MIT); the log names the time zone at startup.
+- Inside a container, a warning when the port forwarding hides the client addresses (rootless Podman with
+  `slirp4netns`): the sign-in throttling, the audit log and `agent_networks` would see one address for everybody.
+
+### Changed
+
+- The log has no colour codes when it does not go to a terminal (journald, `docker logs`).
+
 - With the German interface the detail of a CVE (list, page of its own, inbox) shows the German summary of a BSI
   advisory above the English text: the advisory whose title names an affected product, else the one with the fewest
   CVEs, else the newest; a collective advisory says how many vulnerabilities its summary covers.

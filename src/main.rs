@@ -5,7 +5,7 @@ use std::sync::Arc;
 use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
 use opensecmon::auth;
-use opensecmon::config::Config;
+use opensecmon::config::{self, Config};
 use opensecmon::crypto::SecretBox;
 use opensecmon::i18n::Lang;
 use opensecmon::maintenance::Maintenance;
@@ -21,7 +21,7 @@ use tracing_subscriber::EnvFilter;
     about = "Security advisories for your own software and hardware"
 )]
 struct Args {
-    /// Path to the TOML config file (defaults and OPENSECMON_* environment variables apply without it)
+    /// Path to the TOML config file (else OPENSECMON_CONFIG; defaults and OPENSECMON_* environment variables apply without it)
     #[arg(short, long, global = true)]
     config: Option<PathBuf>,
     #[command(subcommand)]
@@ -46,6 +46,9 @@ enum Command {
         /// Target file; created with mode 0600
         target: PathBuf,
     },
+    /// Ask the running server for /healthz on its own address; exit status 0 when it is healthy
+    /// (for container health checks; with built-in HTTPS the certificate of tls_cert_file is expected)
+    Healthcheck,
 }
 
 #[derive(Subcommand)]
@@ -98,17 +101,33 @@ fn parse_language(code: &str) -> Result<Lang, String> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let config = Config::load(args.config.as_deref()).context("loading configuration")?;
+    let config_path = args.config.clone().or_else(|| {
+        std::env::var_os(config::ENV_CONFIG)
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from)
+    });
+    let config = Config::load(config_path.as_deref()).context("loading configuration")?;
 
     let filter = EnvFilter::try_from_default_env()
         .or_else(|_| EnvFilter::try_new(&config.log_filter))
         .context("invalid log filter")?;
+    // Colours only on a terminal; journald and `docker logs` would show the escape codes.
     tracing_subscriber::fmt()
         .with_env_filter(filter)
+        .with_ansi(std::io::stderr().is_terminal())
         .with_writer(std::io::stderr)
         .init();
 
     let command = args.command.unwrap_or(Command::Serve);
+    if let Command::Healthcheck = command {
+        return match opensecmon::healthcheck::check(&config).await {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                eprintln!("unhealthy: {e}");
+                std::process::exit(1);
+            }
+        };
+    }
     if let Command::Key(KeyCommand::Generate) = command {
         SecretBox::generate_key_file(&config.secret_key_file).context("creating key file")?;
         println!("Key file created: {}", config.secret_key_file.display());
@@ -172,11 +191,29 @@ async fn main() -> anyhow::Result<()> {
     match command {
         Command::Serve => serve(config, pool).await,
         Command::User(cmd) => manage_users(&pool, cmd).await,
-        Command::Key(_) | Command::Tls(_) | Command::Backup { .. } => Ok(()),
+        Command::Key(_) | Command::Tls(_) | Command::Backup { .. } | Command::Healthcheck => Ok(()),
     }
 }
 
 async fn serve(config: Config, pool: SqlitePool) -> anyhow::Result<()> {
+    if config.generate_missing {
+        let created = opensecmon::first_start::create_missing(&config)
+            .map_err(anyhow::Error::msg)
+            .context("creating missing files (generate_missing)")?;
+        if created.key_file {
+            tracing::warn!(
+                path = %config.secret_key_file.display(),
+                "created a new encryption key; back it up separately from the database"
+            );
+        }
+        if let Some(cert) = created.certificate {
+            tracing::info!(
+                names = %cert.names.join(", "),
+                fingerprint = %cert.fingerprint,
+                "created a self-signed certificate; browsers warn once, compare this fingerprint"
+            );
+        }
+    }
     let secrets = SecretBox::from_key_file(&config.secret_key_file).with_context(|| {
         format!(
             "loading the encryption key (create one with `opensecmon key generate`; config key secret_key_file = {})",
@@ -257,6 +294,27 @@ async fn serve(config: Config, pool: SqlitePool) -> anyhow::Result<()> {
     // JSON columns of rows written before migration 0013 are packed in the background.
     opensecmon::storage::packed::spawn_convert(pool.clone());
     let state = AppState::new(pool.clone(), &config, Arc::new(secrets));
+    tracing::info!(
+        time_zone = %state.time_zone_name,
+        "the daily report, the times in mails and the backup use this time zone"
+    );
+    let backups = config.backup_dir.clone().map(|dir| {
+        tracing::info!(
+            dir = %dir.display(),
+            time = %config.backup_time,
+            keep = config.backup_keep,
+            "daily backup"
+        );
+        opensecmon::backup::spawn(
+            pool.clone(),
+            opensecmon::backup::Plan {
+                dir,
+                keep: config.backup_keep,
+                minute: config.backup_minute(),
+            },
+            state.time_zone.clone(),
+        )
+    });
     let maintenance = Maintenance::spawn(
         pool,
         config.retention_audit_days,
@@ -318,6 +376,9 @@ async fn serve(config: Config, pool: SqlitePool) -> anyhow::Result<()> {
         notifier.stop().await;
     }
     maintenance.stop().await;
+    if let Some(backups) = backups {
+        backups.abort();
+    }
     // Closing the pool checkpoints the WAL into the database file.
     db.close().await;
     served?;

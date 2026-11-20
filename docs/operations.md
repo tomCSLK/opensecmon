@@ -137,7 +137,8 @@ network, or a reverse proxy with an access check in front, is the better choice.
 ## Configuration
 
 `/etc/opensecmon/config.toml`; every key is explained in
-[`deploy/config.example.toml`](../deploy/config.example.toml). After a change: `sudo systemctl restart opensecmon`.
+[`deploy/config.example.toml`](../deploy/config.example.toml), and [`configuration.md`](configuration.md) lists all settings with
+their defaults and environment variables. After a change: `sudo systemctl restart opensecmon`.
 The mail settings, thresholds, priority weights, retention and the sources are settings in the interface and take
 effect at once.
 
@@ -155,8 +156,10 @@ effect at once.
 | `fetch_sources` | `true` | Fetch the sources on their schedule and run the mails and the SSH reading. `false` only fetches on "Fetch now" (for a second instance that looks at a copied database). |
 | `retention_audit_days` | 730 | Audit log; also adjustable under *Settings > Retention* (at least 90 days). |
 
-Environment variables `OPENSECMON_LISTEN`, `OPENSECMON_DATABASE_PATH`, `OPENSECMON_LOG_FILTER` and
-`OPENSECMON_SECRET_KEY_FILE` override the file (e.g. in a drop-in with `systemctl edit opensecmon`).
+Every key can also be set as an environment variable, `OPENSECMON_` plus the key in capitals (e.g.
+`OPENSECMON_TIME_ZONE`); a variable wins over the file (e.g. in a drop-in with `systemctl edit opensecmon`). The keys
+`generate_missing` and `backup_dir`/`backup_keep`/`backup_time` are for containers; the package creates the key and the
+certificate during the installation and backs up with its timer ([`configuration.md`](configuration.md)).
 
 ## Behind a reverse proxy (optional)
 

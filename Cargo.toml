@@ -45,7 +45,7 @@ tower-http = { version = "0.6", features = ["trace", "compression-gzip", "set-he
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 unic-langid = "0.9"
-jiff = "0.2.38"
+jiff = { version = "0.2.38", features = ["tzdb-bundle-always"] }
 webpki-roots = "1.0.11"
 # The CVE list comes as zip files (cvelistV5 releases).
 zip = { version = "9.4.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
