@@ -2,6 +2,9 @@
 //! image): the key file and a self-signed certificate. The `.deb` and the installer create both during the
 //! installation instead. Existing files are never touched; a certificate without its key (or the other way
 //! round) is an error, so a half-copied pair is not silently replaced.
+//!
+//! The certificate also names the hosts of `allowed_hosts` (without the port): the scripts for computers check
+//! the name with `curl --cacert`, and a container's own host name is not the address the computers use.
 
 use std::path::Path;
 
@@ -27,8 +30,8 @@ pub fn create_missing(config: &Config) -> Result<Created, String> {
         match (exists(cert)?, exists(key)?) {
             (true, true) => {}
             (false, false) => {
-                // Names found on the system (e.g. a host name with "_") are left out.
-                let names: Vec<String> = tls::certificate_names(&[])
+                // Names that are no valid host names (e.g. a host name with "_") are left out.
+                let names: Vec<String> = tls::certificate_names(&host_names(&config.allowed_hosts))
                     .into_iter()
                     .filter(|name| tls::is_valid_name(name))
                     .collect();
@@ -50,6 +53,24 @@ pub fn create_missing(config: &Config) -> Result<Created, String> {
         }
     }
     Ok(created)
+}
+
+/// The hosts of `allowed_hosts` without their ports (`[fd00::2]:8444` gives `fd00::2`).
+fn host_names(allowed_hosts: &[String]) -> Vec<String> {
+    allowed_hosts
+        .iter()
+        .map(|entry| {
+            let entry = entry.trim();
+            if let Some(rest) = entry.strip_prefix('[') {
+                rest.split(']').next().unwrap_or_default()
+            } else if entry.matches(':').count() == 1 {
+                entry.split(':').next().unwrap_or_default()
+            } else {
+                entry
+            }
+            .to_owned()
+        })
+        .collect()
 }
 
 /// Whether `path` exists; an error (e.g. no permission on the directory) is reported, not taken as "no".
@@ -87,6 +108,33 @@ mod tests {
         let second = create_missing(&config).unwrap();
         assert!(!second.key_file && second.certificate.is_none());
         assert_eq!(std::fs::read(&config.secret_key_file).unwrap(), key_before);
+    }
+
+    #[test]
+    fn the_allowed_hosts_are_named_in_the_certificate() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = Config {
+            allowed_hosts: vec![
+                "192.0.2.10:8444".into(),
+                "secmon.example.org".into(),
+                "[fd00::2]:8444".into(),
+                "bad_name:8444".into(),
+            ],
+            ..config(dir.path(), true)
+        };
+        let names = create_missing(&config).unwrap().certificate.unwrap().names;
+        for name in ["192.0.2.10", "secmon.example.org", "fd00::2", "localhost"] {
+            assert!(
+                names.iter().any(|n| n == name),
+                "{name} missing in {names:?}"
+            );
+        }
+        assert!(
+            !names
+                .iter()
+                .any(|n| n.contains("bad_name") || n.contains(':') && n.contains('['))
+        );
+        assert_eq!(names[0], "192.0.2.10", "the allowed hosts come first");
     }
 
     #[test]
