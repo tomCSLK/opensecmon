@@ -971,8 +971,39 @@ die Dateien von dort kopieren und anpassen (`Containerfile`, `compose.yaml`, `de
      Zertifikat entstehen, beim zweiten Start nicht neu, Zone `Europe/Berlin` aus `TZ` über die eingebettete tzdb, `healthcheck` 0 bzw.
      1 ohne Server, `user add`, Anmeldung über HTTPS, fremder Host 421, Log ohne Farbcodes. Die nachgeholte Sicherung kam
      nach fünf Minuten, Name in Ortszeit, Ordner 0700, Datei 0600, `integrity_check` ok; Stopp mit SIGTERM sauber.
-2. **Image und Doku:** `Containerfile`, `compose.yaml`, `dev/container.sh` (Bau für die eigene Architektur und Rauchtest), Workflow
-   `container.yml` (amd64/arm64, Rauchtest, Push nur beim Tag), `docs/docker.md`, Abschnitt im README, `release.sh` legt `compose.yaml` ins Release.
+2. ✓ **Image und Doku** (2026-11-20, „go für Schritt 2“; kein Paket, kein Release, nichts gepusht ins Registry): `Containerfile`, `compose.yaml`,
+   `dev/container.sh` (Bau für die eigene Architektur und Rauchtest), Workflow `container.yml` (amd64/arm64, Rauchtest, Push nur beim Tag),
+   `docs/docker.md`, Abschnitt im README, `release.sh` legt `compose.yaml` ins Release (auch in `SHA256SUMS`).
+   Ergänzt nach Rückfrage des Nutzers (2026-11-20, „ja, so eintragen und go für Schritt 2“):
+   - **Zertifikatsnamen aus `allowed_hosts`:** `generate_missing` nimmt die Namen aus `allowed_hosts` (ohne Port) mit ins selbst signierte
+     Zertifikat. Grund: die Skripte für Rechner (`curl --cacert`) prüfen den Namen; das Zertifikat aus dem Container kennt sonst nur den
+     Containernamen, `localhost` und die Loopback-Adressen, nicht die Adresse des Hosts. opensecagent selbst prüft nur den Fingerabdruck und
+     ist nicht betroffen. Wer `allowed_hosts` später setzt, löscht die beiden Zertifikatsdateien und startet neu (`docs/docker.md`).
+   - **Pakete von opensecagent im Image** (statt Vorschlag 5 „ohne“): Das Repo `tomCSLK/opensecagent` ist öffentlich, es fehlt nur ein Release mit
+     den signierten Paketen. Ablauf: Der Nutzer signiert wie bisher lokal und lädt Pakete samt `.sig` als Release-Dateien hoch (Schlüssel nie in
+     der CI). In opensecmon nennt eine kleine Datei Tag und SHA-256 je Datei; der Container-Workflow lädt genau diese Dateien, prüft Prüfsumme
+     und Signatur gegen den öffentlichen Schlüssel im Repo und legt sie nach `/usr/share/opensecmon/agent`; sonst bricht der Bau ab. Solange
+     nichts eingetragen ist, baut die CI das Image ohne Pakete; ein eigener Ordner über `agent_packages_dir` bleibt möglich. Voraussetzung:
+     ein Release von opensecagent (nur auf Ansage). Rund 4,7 MB mehr im Image. Das `.deb` kann später denselben Weg nehmen (keine Pflicht).
+   Umgesetzt:
+   - Image wie bei opennetmon (`scratch`, UID 10001, keine `RUN`-Schritte), Port 8444, `OPENSECMON_BACKUP_KEEP=3`,
+     `OPENSECMON_AGENT_PACKAGES_DIR=/usr/share/opensecmon/agent`; `compose.yaml` mit `TZ` und auskommentiertem `OPENSECMON_ALLOWED_HOSTS`
+     samt Hinweis, ohne `sysctls` (opensecmon pingt nicht). Größe 24,4 MB mit den beiden Paketen von opensecagent 0.1.2.
+   - Zertifikatsnamen: `first_start::host_names` nimmt die Hosts aus `allowed_hosts` (ohne Port, IPv6 in Klammern) vor die übrigen Namen;
+     ungültige Namen fallen weg. Test `the_allowed_hosts_are_named_in_the_certificate`.
+   - Pakete: öffentlicher Schlüssel als `keys/opensecagent.allowed_signers` (Kopie aus opensecagent; `dev/agent-packages.sh` nimmt jetzt
+     diese Datei und warnt, wenn sie von `../opensecagent/keys/allowed_signers` abweicht), Liste `dist/agent/release.txt` (heute ohne Tag,
+     also keine Pakete in der CI), `dev/agent-release.sh` (lädt, prüft SHA-256, dann Signaturen über `dev/agent-packages.sh`; bei einem
+     Fehler bleibt `dist/agent/` unverändert). `dev/container.sh` prüft die Signaturen beim Bau noch einmal. Workflow: Schritt „Fetch the
+     opensecagent packages“ vor dem Bau.
+   - Rauchtest (`dev/container.sh --test`): read-only ohne Capabilities, `OPENSECMON_ALLOWED_HOSTS=opensecmon.test:<Port>`, Healthcheck,
+     Zertifikat nennt den Host zuerst und gilt dafür (curl mit `--cacert` ohne `-k`), fremder Host 421, `user add`, Anmeldung, Downloads
+     der Pakete gleich `dist/agent/`, `tls generate` überschreibt nicht, Neustart behält Schlüssel und Daten; die Quellen werden nicht
+     abgerufen. Hinweis im Test, wenn die Portweiterleitung die Adressen verdeckt.
+   - Geprüft: `dev/agent-release.sh` mit `file://` gegen die signierten 0.1.2-Dateien (gut, verändert mit alter Prüfsumme, verändert mit
+     neuer Prüfsumme: Signatur scheitert, fehlende Datei); Rauchtest mit Podman 4.9 ohne Root bestanden, dabei kam die Warnung zu verdeckten
+     Adressen (slirp4netns); mit `--network pasta` keine Warnung. `dev/release.sh` ohne `--publish` grün (477 Tests). In der CI noch nicht
+     gelaufen (Schritt 3).
 3. **Prüfung:** lokal mit Podman ohne Root (erster Start, Healthcheck, `user add`, Anmeldung, Neustart und Update mit denselben Volumes, Sicherung,
    Erstimport mit echtem Netz und Messung von Dauer, Speicher und Platz, Mail, Agent-Anmeldung mit Absenderadresse); in der CI von Hand gestartet
    ohne Push (amd64 und arm64 unter Docker). Offen bleibt der Erstimport auf einem Pi (Dauer, Speicher).

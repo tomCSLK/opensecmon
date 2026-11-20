@@ -21,7 +21,7 @@ und eingebautes HTTPS; Vorhaben „Rauschen im Betrieb“ abgeschlossen; Desktop
 Skripte in `contrib/` und Vorbereitung für das eigene Programm opensecagent (Schritt 7). **Öffentlich und als erstes
 Release v0.3.5 veröffentlicht** (2026-11-08). Danach (2026-11-09) deutsche Texte zu CVEs (Kurzfassung des BSI,
 „Übersetzen“ im Browser) und Windows, Apple und Android im CVE-Detail; Version 0.3.6 als Test-Paket, kein Release. Danach (2026-11-19) HTML-Mails im Stil von opennetmon, Test-Paket 0.3.7 (Mails vom Nutzer geprüft). In Arbeit: Docker-Version
-wie bei opennetmon (Vorhaben in `PLAN.md`; Schritt 1, die Vorarbeiten im Programm, erledigt 2026-11-20; weitere Schritte nach „go“).
+wie bei opennetmon (Vorhaben in `PLAN.md`; Schritte 1 und 2, Vorarbeiten im Programm sowie Image und Doku, erledigt 2026-11-20; Schritt 3, die Prüfung, nach „go“).
 Weitere Releases nur auf Ansage. Einzelheiten, Messwerte und Abweichungen vom Entwurf in `PLAN.md`; Betriebsdaten der eigenen
 Installation nur in `CLAUDE.local.md` und `PLAN.local.md` (gitignored).
 
@@ -131,6 +131,10 @@ Verlauf) in `src/situation.rs`,
   in `js.ftl`, im Skript mit `T('…')`.
 - **Oberfläche:** CSP `default-src 'self'`, also keine Inline-Skripte und keine `style`-Attribute. Eigene Ergänzungen
   am CSS stehen am Ende von `static/app.css` (Abschnitt „Ergänzungen der Anwendung“).
+- **Container:** `Containerfile`, `compose.yaml`, `dev/container.sh [--test]` (Bau für die eigene Architektur, Rauchtest; Podman, sonst
+  Docker), Workflow `.github/workflows/container.yml` (amd64/arm64, Push nach GHCR nur beim Release-Tag), Doku `docs/docker.md`. Pakete von
+  opensecagent für das Image: Tag und SHA-256 in `dist/agent/release.txt`, `dev/agent-release.sh` lädt und prüft sie (öffentlicher Schlüssel
+  `keys/opensecagent.allowed_signers`, Kopie aus `../opensecagent/keys/`). Ohne Tag dort baut die CI das Image ohne Pakete.
 - **Paket:** `dev/deb.sh` (braucht `cargo-deb` und das Ziel `x86_64-unknown-linux-musl`), Ergebnis
   `target/debian/opensecmon_<version>-1_amd64.deb`. Installationstest im Container (`podman`, Image
   `debian:trixie`, ohne Netz). `dev/release.sh` nur zum Prüfen; veröffentlichen (`--publish`) nur auf Ansage.
