@@ -21,8 +21,8 @@ architecture is built on its own hardware and smoke-tested before it is pushed.
 opensecmon keeps the public vulnerability data locally, so it needs room:
 
 - **Database:** about 2 GB after the first fetch, growing slowly.
-- **First fetch:** about 2 GB of downloads (CVE list, NVD, OSV of Debian and Ubuntu, BSI and vendor advisories) and half an hour or more,
-  on a Raspberry Pi longer. The downloads land in `downloads/` next to the database and are deleted after each run. The interface works
+- **First fetch:** about 2 GB of downloads (CVE list, NVD, OSV of Debian and Ubuntu, BSI and vendor advisories) and about 25 minutes on
+  an amd64 laptop with a fast line, on a Raspberry Pi longer. The downloads land in `downloads/` next to the database and are deleted after each run. The interface works
   meanwhile; *Sources* shows the state of each source.
 - **Backups:** each about as large as the database; the image keeps three (see [Backups](#backups)).
 
@@ -144,7 +144,8 @@ opennetmon.
 The sign-in throttling, the audit log and `agent_networks` use the address of the client. **Docker** and **Podman with `pasta`** (the default
 since Podman 5) keep it. **Rootless Podman with `slirp4netns`** (the default before Podman 5) hands every connection to the container from the
 container's own address: then all clients look like one, failed sign-ins of one lock out all, and `agent_networks` cannot tell computers apart.
-opensecmon notices this and warns once in the log ("the port forwarding hides the clients"). Remedies, one of them:
+opensecmon notices this and warns once in the log ("the port forwarding hides the clients"). With `pasta`, requests that the host itself
+sends to its own address appear with the address of the gateway; those of other devices keep theirs. Remedies, one of them:
 
 - `podman run --network pasta …` (with `podman-compose`: `network_mode: pasta` in `compose.yaml`);
 - `network_mode: host` (without `ports:`): the server listens on port 8444 of the host;

@@ -1004,9 +1004,34 @@ die Dateien von dort kopieren und anpassen (`Containerfile`, `compose.yaml`, `de
      neuer Prüfsumme: Signatur scheitert, fehlende Datei); Rauchtest mit Podman 4.9 ohne Root bestanden, dabei kam die Warnung zu verdeckten
      Adressen (slirp4netns); mit `--network pasta` keine Warnung. `dev/release.sh` ohne `--publish` grün (477 Tests). In der CI noch nicht
      gelaufen (Schritt 3).
-3. **Prüfung:** lokal mit Podman ohne Root (erster Start, Healthcheck, `user add`, Anmeldung, Neustart und Update mit denselben Volumes, Sicherung,
-   Erstimport mit echtem Netz und Messung von Dauer, Speicher und Platz, Mail, Agent-Anmeldung mit Absenderadresse); in der CI von Hand gestartet
-   ohne Push (amd64 und arm64 unter Docker). Offen bleibt der Erstimport auf einem Pi (Dauer, Speicher).
+3. ✓ **Prüfung** (2026-11-20, „go für Schritt 3“): lokal mit Podman 4.9 ohne Root und `--network pasta`, read-only ohne Capabilities, echte
+   Quellen; in der CI von Hand gestartet ohne Push.
+   - **CI** (Workflow `container.yml` von Hand, Commit vor der Korrektur unten): amd64 und arm64 unter Docker gebaut, Rauchtest bestanden, ohne
+     Pakete (kein Release in `release.txt`), nichts gepusht; Größe amd64 19,6 MB, arm64 16,8 MB. Unter Docker keine Warnung zu verdeckten Adressen.
+   - **Erster Start, Healthcheck, `user add`, Anmeldung** über `127.0.0.1` und über die LAN-Adresse: ok. Das Zertifikat nennt beide Hosts aus
+     `OPENSECMON_ALLOWED_HOSTS`.
+   - **Erstimport** mit echtem Netz: 24,5 min (16:49–17:13 Ortszeit, mit einem Update-Neustart nach 10 min), 429.823 CVEs (cvelist 380 s, NVD
+     371 s, EPSS 39 s, BSI 308 s, OSV Debian 15 s, OSV Ubuntu 134 s, Debian-Tracker 1 s, KEV unter 1 s). Speicher in der Spitze 209 MB, danach
+     24 MB. Datenvolume in der Spitze 2,73 GB (mit Downloads), danach 1,98 GB (DB 1,6 GB, eine Sicherung 257 MB vom Anfang, Downloads leer).
+   - **Befund und Korrektur:** `cvelist` brach im ersten Lauf mit „database is locked“ ab, 0,1 s nachdem die Meldung des Test-Rechners
+     gespeichert war (weiter erst nach NVD). Ursache: Transaktionen mit `pool.begin()` (deferred) lesen zuerst und können nach einem fremden
+     Schreibvorgang nicht mehr schreiben, SQLite meldet das sofort statt nach `busy_timeout`. Alle 26 schreibenden Transaktionen nehmen jetzt
+     `storage::write_tx` (`BEGIN IMMEDIATE`, wie schon `items.rs`/`inventory.rs`), dazu ein Test, der den Fehler nachstellt, und einer, der
+     `.begin()` außerhalb der Tests verbietet (Commit „Take the write lock at the start of every transaction“). Betrifft auch das `.deb`.
+     Gegenprobe mit dem neuen Image: Meldung des Rechners und zehnmal Mail-Einstellungen speichern während `cvelist`, kein Sperrfehler,
+     Schreibzugriffe warteten höchstens 0,5 s.
+   - **Update** mit denselben Volumes mitten im Abruf (neues Image mit der Korrektur): Stopp 1,1 s mit Exit-Code 0, gleicher Fingerabdruck,
+     kein neuer Schlüssel, Benutzer und Rechner da, keine doppelte Sicherung, `cvelist` begann von vorn und lief durch.
+   - **Sicherung:** die nachgeholte kam fünf Minuten nach dem ersten Start mitten im Abruf (10 s, 269 MB), Datei 0600, Ordner 0700.
+   - **Mail:** SMTP zum Test-Mailserver auf dem Host über `pasta -T,1025`. Test-Mail ok; Sofort-Mail nach dem Erstimport („9 neue Treffer,
+     höchste Priorität 90“, aus 3.049 Treffern der Ubuntu-OSV-Daten mit den Standardschwellen) nach den 10 Minuten Bündeln, mit Text, HTML und
+     Logo. Tagesbericht nicht abgewartet (gleicher Code wie beim `.deb`).
+   - **Rechner:** angelegt, Anmeldung per curl mit dem Code über die LAN-Adresse, Meldung mit 1.213 Paketen gespeichert und abgeglichen; der
+     Agent-Takt wies schnelle Folgemeldungen mit 429 ab (gewollt). Die Downloads der Pakete von opensecagent gingen. Absenderadresse mit
+     `pasta`: von `127.0.0.1` echt, Anfragen vom Host selbst an seine LAN-Adresse erscheinen als Adresse des Gateways (Verhalten von `pasta`,
+     ein anderes Gerät im LAN war nicht zur Hand). Mit `slirp4netns` (Rauchtest, Schritt 2) kam die Warnung.
+   - **Offen:** Erstimport auf einem Pi (Dauer, Speicher); Anmeldung von einem zweiten Gerät im LAN; Pakete von opensecagent in der CI erst mit
+     einem opensecagent-Release.
 4. **Veröffentlichung** mit dem nächsten Release, nur auf Ansage; danach Paket auf GHCR öffentlich (Nutzer).
 
 ## Abweichungen vom Entwurf und Entscheidungen der Umsetzung

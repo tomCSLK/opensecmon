@@ -21,7 +21,7 @@ und eingebautes HTTPS; Vorhaben „Rauschen im Betrieb“ abgeschlossen; Desktop
 Skripte in `contrib/` und Vorbereitung für das eigene Programm opensecagent (Schritt 7). **Öffentlich und als erstes
 Release v0.3.5 veröffentlicht** (2026-11-08). Danach (2026-11-09) deutsche Texte zu CVEs (Kurzfassung des BSI,
 „Übersetzen“ im Browser) und Windows, Apple und Android im CVE-Detail; Version 0.3.6 als Test-Paket, kein Release. Danach (2026-11-19) HTML-Mails im Stil von opennetmon, Test-Paket 0.3.7 (Mails vom Nutzer geprüft). In Arbeit: Docker-Version
-wie bei opennetmon (Vorhaben in `PLAN.md`; Schritte 1 und 2, Vorarbeiten im Programm sowie Image und Doku, erledigt 2026-11-20; Schritt 3, die Prüfung, nach „go“).
+wie bei opennetmon (Vorhaben in `PLAN.md`; Schritte 1–3, Programm, Image, Doku und Prüfung, erledigt 2026-11-20; dabei „database is locked“ beim Erstimport behoben; offen nur die Veröffentlichung mit dem nächsten Release, auf Ansage).
 Weitere Releases nur auf Ansage. Einzelheiten, Messwerte und Abweichungen vom Entwurf in `PLAN.md`; Betriebsdaten der eigenen
 Installation nur in `CLAUDE.local.md` und `PLAN.local.md` (gitignored).
 
